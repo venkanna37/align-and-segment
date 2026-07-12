@@ -1,11 +1,11 @@
+# This code is under preparation. It will be ready soon!
+
 # Align and Segment (AnS): Unsupervised Learning for Building Segmentation From Misaligned Labels
 
 This is the official repository for the ECCV 2026 paper "Align and Segment:
 Unsupervised Learning for Building Segmentation From Misaligned Labels".
 This paper proposed a method for aligning and segmenting buildings from misaligned labels
 without using any **golden labels**.
-
-[!NOTE] This code under preparation.
 
 * [**Requirements**](#requirements)
 * [**Sample Data**](#sample-data)
