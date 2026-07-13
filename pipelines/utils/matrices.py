@@ -2,35 +2,6 @@ import torch
 import torch.nn.functional as F
 
 
-def transform_mask_with_random_affine(batch, device, max_shift=50):
-    B, C, H, W = batch.shape
-    assert H == W, "Batch must be square (H == W)"
-
-    max_shift = (float(max_shift)/2.0) / H
-    tx = torch.rand((B, 1), device=device) *  (max_shift*2) - max_shift
-    ty = torch.rand((B, 1), device=device) *  (max_shift*2) - max_shift
-    theta = torch.rand((B, 1), device=device) *  (max_shift*2) - max_shift
-
-    cos_theta = torch.cos(theta)
-    sin_theta = torch.sin(theta)
-
-    # Create affine matrices (B, 2, 3)
-    row1 = torch.cat([cos_theta, -sin_theta, tx], dim=1)
-    row2 = torch.cat([sin_theta, cos_theta, ty], dim=1)
-    affine_matrix = torch.stack([row1, row2], dim=1)
-
-    # Generate grid and apply transformation
-    grid = F.affine_grid(affine_matrix, size=batch.size(), align_corners=False)
-    rand_pred_mask = F.grid_sample(batch, grid, align_corners=False)
-
-    # Check for zero masks per sample in batch and replace with identity where rand_pred_mask is zero
-    zero_mask = torch.sum(rand_pred_mask.view(B, -1), dim=1) == 0
-    identity = torch.eye(2, 3, device=device).unsqueeze(0).expand(B, -1, -1).clone()
-    affine_matrix[zero_mask] = identity[zero_mask]
-
-    return rand_pred_mask, affine_matrix
-
-
 def inverse_affine_matrix(aff_mat):
     """Convert (2x3) affine matrix to inverse affine matrix."""
     ones_row = torch.tensor([0, 0, 1], dtype=aff_mat.dtype, device=aff_mat.device)
@@ -62,4 +33,3 @@ def warp_mask_with_affine(mask, affine_matrix):
     grid = F.affine_grid(affine_matrix, mask.size(), align_corners=True)
     transformed_mask = F.grid_sample(mask, grid, align_corners=True, mode='nearest').squeeze(0)
     return transformed_mask
-

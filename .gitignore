@@ -1,3 +1,4 @@
 .idea
 temp/
-tools/__pycache__/
+*/__pycache__/
+*/*/__pycache__/

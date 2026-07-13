@@ -17,4 +17,5 @@ kornia==0.7.1
 pytorch-triton-rocm==2.2.0
 torch==2.2.2+rocm5.6
 torchvision==0.17.2+rocm5.6
+einops==0.8.2
 

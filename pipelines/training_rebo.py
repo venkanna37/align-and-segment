@@ -418,7 +418,7 @@ class AlignTraining:
             # change lr according to the scheduler
             lr_scheduler.step()
 
-            # save the latest weights
+            # s = "/scratch/project_465002698/venky/projects/ImageAlign/runs/eccv"ave the latest weights
             latest_filename = 'latest.pth'
             checkpoint_latest_path = os.path.join(self.checkpoints_dir, latest_filename)
             torch.save({

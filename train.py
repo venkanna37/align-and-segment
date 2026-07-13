@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     # data parameters
     parser.add_argument("--data_type", type=str,
-                        help="sythetic, real or rebo", default='sythetic')
+                        help="sythetic, real or rebo", default='synthetic')
     parser.add_argument("--noise_type", type=str,
                         help="u: random noise, b: systematic noise", default='u')
     parser.add_argument("--synth_method", type=int,
@@ -28,6 +28,12 @@ if __name__ == '__main__':
                         help="Patch size for training", default=320)
     parser.add_argument("--use_snet_aug",
                         help="Augmentation for SNet", action=argparse.BooleanOptionalAction, default=False)
+
+    # data directory parameters
+    parser.add_argument("--out_dir", type=str,
+                        help='output directory to save models, logs', default="runs")
+    parser.add_argument("--data_dir", type=str,
+                        help='data directory with input data', default="sample_data/vegas")
 
     # model parameters
     parser.add_argument("--model_name", type=str,
@@ -56,15 +62,6 @@ if __name__ == '__main__':
     # convert all arguments to one dictionary
     args = parser.parse_args()
     params = vars(args)
-
-    params['out_dir'] = "../../runs/challenge"
-    params['data_dir'] = "../../../data/spacenet/spacenet_buildings_norm_50_30_nopoly_max.csv"
-
-    params['data_dir'] = "/scratch/project_465002698/venky/projects/data/spacenet"
-    params['checkpoints_dir'] = "/scratch/project_465002698/venky/projects/ImageAlign/runs/eccv"
-
-    params['out_dir'] = "../../runs/challenge"
-    params['data_dir'] = "../../../data/spacenet/spacenet_buildings_norm_50_30_nopoly_localdir.csv"
 
     # initialize training object and train model
     if args.data_type == 'synthetic':

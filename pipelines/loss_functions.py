@@ -3,10 +3,11 @@ import torch.nn.functional as F
 from segmentation_models_pytorch.losses import JaccardLoss, DiceLoss
 from segmentation_models_pytorch.losses.constants import BINARY_MODE
 
-from .utils import add_third_row
+from pipelines.utils.matrices import add_third_row
 
 
-def loss_for_align(pred_affine, gt_affine, aligned_mask=None, gt_mask=None, weight_mask=None, device='cpu',
+def loss_for_align(pred_affine, gt_affine, aligned_mask=None, gt_mask=None,
+                   weight_mask=None, device='cpu',
                    loss_type='mse', model_name='TNet'):
     """
     Compute loss for TNet and TNet_FF

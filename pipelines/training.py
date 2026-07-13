@@ -1,3 +1,6 @@
+"""
+Training AnS with synthetic dataset
+"""
 import os
 import torch
 import wandb
