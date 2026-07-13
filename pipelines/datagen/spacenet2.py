@@ -1,3 +1,6 @@
+"""
+Datagenerator for
+"""
 import os
 import torch
 import rasterio
@@ -14,8 +17,7 @@ class AlignDatagen:
     def __init__(self,
                  data_dir,
                  sample_size=None,
-                 data_type='synthetic',
-                 single_index=None,
+                 data_type='synthetic',  # fixme
                  set_name=None,
                  synth_method=50,
                  aug_shift=0,
@@ -33,6 +35,7 @@ class AlignDatagen:
         self.set_name = set_name
         self.rescale_value = rescale_value
         if self.data_type == 'real':
+            self.noise_type = 'r'
             file_dir = os.path.join(self.data_dir, 'patch_boundaries_split.geojson')  #fixme
             self.df = gpd.read_file(file_dir)
         else:
@@ -77,6 +80,8 @@ class AlignDatagen:
             theta = self.df.iloc[index][ro_att]/2.0
         elif self.noise_type == "b": #bias
             tx, ty, theta = self.synth_method, 0, 0
+        elif self.noise_type == "r":  # real
+            pass
         else:
             raise ValueError(f"Unknown noise type: {self.noise_type}")
 
@@ -106,74 +111,6 @@ class AlignDatagen:
             warped_mask = warp_mask_with_affine(y, affine_matrix)
 
             return x.squeeze(0), y.squeeze(0), warped_mask, affine_matrix
-
-    def create_aug_data(self, y, affine, device):
-        B, C, H, W = y.shape
-
-        # affine matrix to (B, 3, 3)
-        last_row = torch.tensor([0, 0, 1], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine = torch.cat((affine, last_row), dim=1)
-
-        # horizontal flipping
-        hflip_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.hflip_chance)
-        y = y * (1 - hflip_coin) + hflip(y) * hflip_coin
-        hflip_coin = hflip_coin.squeeze(1)
-        Fv = torch.tensor([[-1, 0, 0], [0, 1, 0], [0, 0, 1]], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine_new = Fv @ affine @ Fv
-        affine = affine * (1 - hflip_coin) + affine_new * hflip_coin
-        
-        # vertical flipping
-        vflip_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.vflip_chance)
-        y = y * (1 - vflip_coin) + vflip(y) * vflip_coin
-        vflip_coin = vflip_coin.squeeze(1)
-        Fv = torch.tensor([[1, 0, 0], [0, -1, 0], [0, 0, 1]], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine_new = Fv @ affine @ Fv
-        affine = affine * (1 - vflip_coin) + affine_new * vflip_coin
-
-        # rotation 90
-        rot90_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
-        aug = K.RandomRotation90(times=(1, 1), p=1, resample='nearest', keepdim=True)
-        y = y * (1 - rot90_coin) + aug(y) * rot90_coin
-        rot90_coin = rot90_coin.squeeze(1)
-        Fv = torch.tensor([[0, -1, 0], [1, 0, 0], [0, 0, 1]], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine_new = Fv.transpose(1, 2) @ affine @ Fv
-        affine = affine * (1 - rot90_coin) + affine_new * rot90_coin
-        
-        # rotation 180
-        rot180_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
-        aug = K.RandomRotation90(times=(2, 2), p=1, resample='nearest', keepdim=True)
-        y = y * (1 - rot180_coin) + aug(y) * rot180_coin
-        rot180_coin = rot180_coin.squeeze(1)
-        Fv = torch.tensor([[-1, 0, 0], [0, -1, 0], [0, 0, 1]], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine_new = Fv.transpose(1, 2) @ affine @ Fv
-        affine = affine * (1 - rot180_coin) + affine_new * rot180_coin
-        
-        # rotation 270
-        rot270_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
-        aug = K.RandomRotation90(times=(3, 3), p=1, resample='nearest', keepdim=True)
-        y = y * (1 - rot270_coin) + aug(y) * rot270_coin
-        rot270_coin = rot270_coin.squeeze(1)
-        Fv = torch.tensor([[0, 1, 0], [-1, 0, 0], [0, 0, 1]], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine_new = Fv.transpose(1, 2) @ affine @ Fv
-        affine = affine * (1 - rot270_coin) + affine_new * rot270_coin
-
-        # additive noise (uniform and normal/gaussian distribution noise)
-        noise_coin = torch.rand((B, 1, 1, 1), device=device)
-        noise_coin_add = (noise_coin < self.pixel_noise_chance / 2)
-        noise_coin_rem = ((noise_coin < self.pixel_noise_chance) & ~noise_coin_add).float()
-        noise_coin_add = noise_coin_add.float()
-
-        y[:, [1]] += ((torch.rand_like(y[:, [1]]) < torch.rand(1).item() * 0.05) * noise_coin_add)
-        y[:, [1]] -= ((torch.rand_like(y[:, [1]]) < torch.rand(1).item() * 0.5) * noise_coin_rem)
-        # clip to 0-1 range
-        y[:, [1]] = (y[:, [1]] > 0.5).float()
-
-        # # random erasing
-        # erasing_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.erasing_chance)
-        # EraseT = K.RandomErasing(scale=(0.005, 0.05), ratio=(0.3, 3.3), value=0.0, p=1, keepdim=True)
-        # y[:, [0]] = y[:, [0]] * (1 - erasing_coin) + EraseT(y[:, [0]]) * erasing_coin
-
-        return y, affine[:, :2, :]
 
 
     def aug_for_unet(self, X, y, z, device, affine):
@@ -246,20 +183,6 @@ class AlignDatagen:
         affine_new = Fv.transpose(1, 2) @ affine @ Fv
         affine = affine * (1 - rot270_coin) + affine_new * rot270_coin
 
-        # elastic transform
-        # elastic_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.elastic_chance)
-        # ElastT = K.RandomElasticTransform(alpha=(1, 5), sigma=(25, 150), p=1, keepdim=True, resample='nearest')
-        # X = X * (1 - elastic_coin) + ElastT(X) * elastic_coin
-        # y = y * (1 - elastic_coin) + ElastT(y) * elastic_coin
-        # z = z * (1 - elastic_coin) + ElastT(z) * elastic_coin
-
-        # random erasing
-        # erasing_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.erasing_chance)
-        # EraseT = K.RandomErasing(scale=(0.005, 0.05), ratio=(0.3, 3.3), value=0.0, p=1, keepdim=True)
-        # X = X * (1 - erasing_coin) + EraseT(X) * erasing_coin
-        # y = y * (1 - erasing_coin) + EraseT(y) * erasing_coin
-        # z = z * (1 - erasing_coin) + EraseT(z) * erasing_coin
-
         # Brightness -> per images: Changes brightness between 0.8 and 1.2
         brightness_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.brightness_chance)
         X = X * (1 - brightness_coin) + torch.clip(
@@ -313,92 +236,3 @@ class AlignDatagen:
         )
 
         return X, y, z, affine[:, :2, :] if affine is not None else None
-
-
-    def baseline_aug(self, X, y, device):
-        B, C, H, W = X.shape
-        y = y.float()
-
-        # flipping horizontal
-        hflip_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.hflip_chance)
-        X = X * (1 - hflip_coin) + hflip(X) * hflip_coin
-        y = y * (1 - hflip_coin) + hflip(y) * hflip_coin
-
-        # flipping vertical
-        vflip_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.vflip_chance)
-        X = X * (1 - vflip_coin) + vflip(X) * vflip_coin
-        y = y * (1 - vflip_coin) + vflip(y) * vflip_coin
-
-        # Rotation 90
-        rot90_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
-        aug = K.RandomRotation90(times=(1, 1), p=1, resample='nearest', keepdim=True)
-        X = X * (1 - rot90_coin) + aug(X) * rot90_coin
-        y = y * (1 - rot90_coin) + aug(y) * rot90_coin
-
-        # Rotation 180
-        rot180_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
-        aug = K.RandomRotation90(times=(2, 2), p=1, resample='nearest', keepdim=True)
-        X = X * (1 - rot180_coin) + aug(X) * rot180_coin
-        y = y * (1 - rot180_coin) + aug(y) * rot180_coin
-
-        # Rotation 270
-        rot270_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
-        aug = K.RandomRotation90(times=(3, 3), p=1, resample='nearest', keepdim=True)
-        X = X * (1 - rot270_coin) + aug(X) * rot270_coin
-        y = y * (1 - rot270_coin) + aug(y) * rot270_coin
-
-        # Brightness -> per images: Changes brightness between 0.8 and 1.2
-        brightness_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.brightness_chance)
-        X = X * (1 - brightness_coin) + torch.clip(
-            (X + (torch.rand(size=(B, 1, 1, 1), device=device) * 0.4 - 0.2)), 0,
-            1) * brightness_coin
-
-        # augmentation from delfors (not using mask)
-        # pixelwise noise (each image has a chance of having random noise per pixel)
-        # additive noise (uniform and normal/gaussian distribution noise)
-        noise_coin = torch.rand((B, 1, 1, 1), device=device)
-        noise_coin_u = (noise_coin < self.pixel_noise_chance / 2)
-        noise_coin_n = ((noise_coin < self.pixel_noise_chance) & ~noise_coin_u).float()
-        noise_coin_u = noise_coin_u.float()
-        # nnoise
-        sigma_n_hyp, sigma_u_hyp = 0.03, 0.3
-        sigma = .015 + sigma_n_hyp
-        X += ((torch.randn_like(X).clip(-3, 3) * sigma) * noise_coin_n)
-        # unoise
-        sigma = .05 + sigma_u_hyp
-        X += ((torch.rand_like(X) * sigma) * noise_coin_u)
-
-        # multiplicative noise
-        noise_coin = torch.rand((B, 1, 1, 1), device=device)
-        noise_coin_u = (noise_coin < self.pixel_noise_chance / 2)
-        noise_coin_n = ((noise_coin < self.pixel_noise_chance) & ~noise_coin_u).float()
-
-        # nnoise
-        sigma = .005 + sigma_n_hyp
-        X += ((X * torch.randn_like(X).clip(-3, 3) * sigma) * noise_coin_n)
-        # unoise
-        sigma = .015 + sigma_u_hyp
-        X += ((X * torch.rand_like(X) * sigma) * noise_coin_u)
-
-        # multiplicative noise
-        noise_coin = torch.rand((B, 1, 1, 1), device=device)
-        noise_coin_u = (noise_coin < self.channel_noise_chance / 2)
-        noise_coin_n = ((noise_coin < self.channel_noise_chance) & ~noise_coin_u).float()
-        noise_coin_u = noise_coin_u.float()
-        # nnoise
-        sigma = .005 + sigma_n_hyp
-        X += ((X * torch.randn((B, C, 1, 1), device=device).clip(-3, 3) * sigma) * noise_coin_n)
-        # unoise
-        sigma = .015 + sigma_u_hyp
-        X += ((X * torch.rand((B, C, 1, 1), device=device) * sigma) * noise_coin_u)
-
-        # pixel dropout
-        X *= torch.clip(
-            torch.floor(torch.rand((B, C, H, W), device=device) + (1 - self.pixel_drop_p)) +
-            torch.floor(torch.rand((B, 1, 1, 1), device=device) + (1 - self.pixel_drop_chance)),
-            max=1
-        )
-
-        return X, y
-
-

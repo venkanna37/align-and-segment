@@ -31,21 +31,18 @@ class AlignTraining:
         self.patch_size = kwargs.get('patch_size', None)
         self.data_dir = kwargs.get('data_dir', None)
         self.batch_size = kwargs.get('batch_size', 2)
-        self.checkpoints_dir = kwargs.get('checkpoints_dir', './checkpoints')
-        self.checkpoints_org = self.checkpoints_dir
+        self.checkpoints_dir = kwargs.get('checkpoints_dir', 'runs')
         self.log_dir = kwargs.get('log_dir', os.path.join(self.checkpoints_dir, 'logs'))
         self.checkpoints_dir = os.path.join(self.checkpoints_dir, self.keyword)
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
         self.sample_size = kwargs.get('sample_size', None)
         self.data_type = kwargs.get('data_type', 'synthetic')
-        self.single_index = kwargs.get('single_index', None)
-        self.synth_method = kwargs.get('synth_method', 1)  # 1: Uniform
+        self.synth_method = kwargs.get('synth_method', 50)  # Magnitude of misalignment
         self.aug_shift = kwargs.get('aug_shift', None)
         self.max_shift = kwargs.get('max_shift', 100)       # this is for reg_loss
         self.do_augh = kwargs.get('do_augh', False)
         self.use_snet_aug = kwargs.get('use_snet_aug', False)
-        self.use_tnet_aug = kwargs.get('use_tnet_aug', False)
         self.noise_type = kwargs.get('noise_type', 'u')
 
         # model parameters
@@ -61,21 +58,19 @@ class AlignTraining:
         self.seg_loss_type = kwargs.get('seg_loss_type', 'cross_entropy')
         self.reg_loss_wt = kwargs.get('reg_loss_wt', 1)
         self.loss_setting = kwargs.get('loss_setting', None)
-        self.warmup_epochs = kwargs.get('warmup_epochs', 0)
         self.num_workers = kwargs.get('num_workers', 4)
         self.use_reg_loss = kwargs.get('use_reg_loss', False)
 
         # visualization parameters
         self.use_wb = kwargs.get('use_wb', False)
         self.wb_project_name = kwargs.get('wb_project_name', 'Align')
-        self.write_images = kwargs.get('write_images', False)
-
 
         if torch.cuda.is_available():
             self.device = torch.device('cuda')
         else:
             self.device = torch.device('cpu')
         self.kwargs = kwargs
+
         # print the parameters as a dictionary
         print("\n -----Training parameters-----")
         for key, value in self.kwargs.items():
@@ -88,7 +83,6 @@ class AlignTraining:
                                  sample_size=self.sample_size,
                                  set_name="train",
                                  data_type=self.data_type,
-                                 single_index=self.single_index,
                                  synth_method=self.synth_method,
                                  aug_shift=self.aug_shift,
                                  patch_size=self.patch_size,
@@ -103,7 +97,6 @@ class AlignTraining:
                                sample_size=self.sample_size,
                                set_name="val",
                                data_type=self.data_type,
-                               single_index=self.single_index,
                                synth_method=self.synth_method,
                                patch_size=self.patch_size,
                                noise_type= self.noise_type)
@@ -118,20 +111,7 @@ class AlignTraining:
         model = torch.nn.Sequential(snet, tnet)
         model.to(self.device)
 
-        # load pretrained TNet weights
-        if self.use_tnet_weights:
-            if self.noise_type == 'b':
-                weights_path = os.path.join(self.checkpoints_org, 'tnet_b_3e1', 'best_val.pth')
-            elif self.noise_type == 'u':
-                weights_path = os.path.join(self.checkpoints_org, 'tnet_u_3e1', 'best_val.pth')
-            else:
-                raise NotImplementedError
-            checkpoint = torch.load(weights_path, map_location=self.device)
-            model[1].load_state_dict(checkpoint['model'], strict=True)
-            for param in model[1].parameters():
-                param.requires_grad = False
-        else:
-            torch.nn.init.zeros_(tnet.fc.weight)
+        torch.nn.init.zeros_(tnet.fc.weight)
 
         # trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         # optimizer = torch.optim.AdamW(trainable_params, lr=self.learning_rate)
@@ -209,69 +189,27 @@ class AlignTraining:
                 ce_loss_avg += seg_loss.item()
                 dict_for_postfix["seg_ls"] = f'{ce_loss_avg / (i + 1):.4f}'
 
-                if self.use_reg_loss:
-                    aug_mask1, g1 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
-                    input_tnet1 = torch.cat((mask, aug_mask1), dim=1)
-                    # input_tnet1, g1 = train_set.create_aug_data(input_tnet1, g1, self.device)
-                    g1_inv = inverse_affine_matrix(g1)
-                    t1, _ = model[1](input_tnet1)
-                    loss1_squares = (g1_inv - t1) ** 2
-
-                    if self.loss_setting == 1:
-                        aff_loss = loss1_squares.mean() * self.reg_loss_wt
-                    else:
-                        aug_mask2, g2 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
-                        input_tnet2 = torch.cat((mask, aug_mask2), dim=1)
-                        # input_tnet2, g2 = train_set.create_aug_data(input_tnet2, g2, self.device)
-                        t2, _ = model[1](input_tnet2)
-                        first_part = add_third_row(t1) @ add_third_row(g1)
-                        second_part = add_third_row(t2) @ add_third_row(g2)
-                        loss2_squares = (first_part - second_part) ** 2
-
-                        if self.loss_setting == 2:
-                            aff_loss = loss2_squares.mean() * self.reg_loss_wt
-
-                        elif self.loss_setting == 3:
-                            aff_loss = (loss1_squares.mean() + loss2_squares.mean()) * self.reg_loss_wt
-
-                        elif self.loss_setting in [4, 5, 6]:
-                            reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
-                            reg_weight_mask = (spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
-                            reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
-                            iou_loss = iou_criterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
-                            iou_loss_avg += iou_loss.item()
-                            dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
-
-                            if self.loss_setting == 4:
-                                aff_loss = loss1_squares.mean() * self.reg_loss_wt
-                            elif self.loss_setting == 5:
-                                aff_loss = loss2_squares.mean() * self.reg_loss_wt
-                            elif self.loss_setting == 6:
-                                aff_loss = torch.tensor(0.0, device=self.device)
-                        else:
-                            raise NotImplementedError
-
-                    if self.loss_setting == 6:
-                        loss = iou_loss
-                    elif self.loss_setting in [4, 5]:
-                        loss = iou_loss
-                        loss += aff_loss
-                    else:
-                        loss = aff_loss
-
-                else:
-                    aff_loss = torch.tensor(0.0, device=self.device)
-                    loss = aff_loss
-
+                # second loss MSE part
+                aug_mask1, g1 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
+                input_tnet1 = torch.cat((mask, aug_mask1), dim=1)
+                g1_inv = inverse_affine_matrix(g1)
+                t1, _ = model[1](input_tnet1)
+                loss1_squares = (g1_inv - t1) ** 2
+                aff_loss = loss1_squares.mean() * self.reg_loss_wt
                 aff_loss_avg += aff_loss.item()
                 dict_for_postfix["reg_ls"] = f'{aff_loss_avg / (i + 1):.4f}'
 
-                if epoch >= self.warmup_epochs:
-                    loss += seg_loss
+                # second loss IoU part
+                reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
+                reg_weight_mask = (spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
+                reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
+                iou_loss = iou_criterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
+                iou_loss_avg += iou_loss.item()
+                dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
+                loss = aff_loss + iou_loss
                 tot_loss_avg += loss.item()
                 dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
-
 
                 # backpropagation
                 optimizer.zero_grad()
@@ -369,66 +307,26 @@ class AlignTraining:
                     ce_loss_avg += seg_loss.item()
                     dict_for_postfix["seg_ls"] = f'{ce_loss_avg / (i + 1):.4f}'
 
+                    # second loss MSE part
                     aug_mask1, g1 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
                     g1_inv = inverse_affine_matrix(g1)
                     input_tnet1 = torch.cat((mask, aug_mask1), dim=1)
                     t1, _ = model[1](input_tnet1)
                     loss1_squares = (g1_inv - t1) ** 2
-
-                    if self.loss_setting == 1:
-                        aff_loss = loss1_squares.mean() * self.reg_loss_wt
-
-                    else:
-                        aug_mask2, g2 = transform_mask_with_random_affine(mask, self.device,
-                                                                          max_shift=self.max_shift)
-                        input_tnet2 = torch.cat((mask, aug_mask2), dim=1)
-                        t2, _ = model[1](input_tnet2)
-                        first_part = add_third_row(t1) @ add_third_row(g1)
-                        second_part = add_third_row(t2) @ add_third_row(g2)
-                        loss2_squares = (first_part - second_part) ** 2
-
-                        if self.loss_setting == 2:
-                            aff_loss = loss2_squares.mean() * self.reg_loss_wt
-
-                        elif self.loss_setting == 3:
-                            aff_loss = (loss1_squares.mean() + loss2_squares.mean()) * self.reg_loss_wt
-
-                        elif self.loss_setting in [4, 5, 6]:
-                            reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
-                            reg_weight_mask = (
-                                        spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
-                            reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
-                            iou_loss = iou_criterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
-                            iou_loss_avg += iou_loss.item()
-                            dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
-
-                            if self.loss_setting == 4:
-                                aff_loss = loss1_squares.mean() * self.reg_loss_wt
-                            elif self.loss_setting == 5:
-                                aff_loss = loss2_squares.mean() * self.reg_loss_wt
-                            elif self.loss_setting == 6:
-                                aff_loss = torch.tensor(0.0, device=self.device)
-
-                        elif self.loss_setting == 7:
-                            aff_loss = torch.tensor(0.0, device=self.device)
-                        else:
-                            raise NotImplementedError
-
-
-                    if self.loss_setting == 6:
-                        loss = iou_loss
-                    elif self.loss_setting in [4, 5]:
-                        loss = iou_loss
-                        loss += aff_loss
-                    else:
-                        loss = aff_loss
-
+                    aff_loss = loss1_squares.mean() * self.reg_loss_wt
                     aff_loss_avg += aff_loss.item()
                     dict_for_postfix["reg_ls"] = f'{aff_loss_avg / (i + 1):.4f}'
 
-                    if epoch >= self.warmup_epochs:
-                        loss += seg_loss
+                    # second loss IoU part
+                    reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
+                    reg_weight_mask = (
+                                spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
+                    reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
+                    iou_loss = iou_criterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
+                    iou_loss_avg += iou_loss.item()
+                    dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
+                    loss = aff_loss + iou_loss
                     tot_loss_avg += loss.item()
                     dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 

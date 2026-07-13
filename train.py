@@ -1,9 +1,10 @@
 """
 # Training AnS
 """
+import sys
 
 import argparse
-from pipelines import training, training_qualitative, training_rebo
+from pipelines.training import training, training_qualitative, training_rebo
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -33,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument("--data_dir", type=str,
                         help='data directory with input data', default="sample_data/vegas")
     parser.add_argument("--checkpoints_dir", type=str,
-                        help='output directory to save models, logs', default="runs")
+                        help='output directory to save models, logs', default="./runs")
 
     # model parameters
     parser.add_argument("--model_name", type=str,
@@ -48,7 +49,7 @@ if __name__ == '__main__':
     parser.add_argument("--tnet_lr", type=float, help="Learning rate for TNet", default=0.00001)
     parser.add_argument("--lr_drop", type=int, help="Learning rate drop", default=300)
     parser.add_argument("--loss_setting", type=int, help="Loss combination for TNet", default=4)
-    # loss_setting1:, loss_setting2:, loss_setting3:, loss_setting4:,
+    # Check training.py file for more details about loss_setting
     parser.add_argument("--seg_loss_type", type=str, help="loss_type", default='cross_entropy')
     parser.add_argument("--reg_loss_wt", type=float,
                         help="Weight for the affine loss (lamda in paper)", default=100)
@@ -57,7 +58,6 @@ if __name__ == '__main__':
 
     # visualisation parameters
     parser.add_argument("--use_wb", action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument("--write_images", action=argparse.BooleanOptionalAction, default=False)
 
     # convert all arguments to one dictionary
     args = parser.parse_args()
