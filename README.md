@@ -10,7 +10,7 @@ without using any **golden labels**. The outline of this repository is given as 
 * [**Requirements**](#requirements)
 * [**Datasets**](#datasets)
 * [**Train**](#train)
-* [**Test**](#train-on-your-own)
+* [**Test**](#test)
 * [**Align and segment**](#align-and-segment)
 * [**Citing**](#citing)
 
@@ -26,12 +26,18 @@ AnS can run without downloading the dinov3 repository and the pretrained model,
 but it takes more time because training must be done from scratch.
 
 ## Datasets
-We provide sample data from Las Vegas in the `sample_data` folder.
-This folder contains a subfolder named after the city, which includes separate `train`, `val`, and `test` directories.
-Within the city folder, there is also a `data.csv` file that contains the filenames along with
-the corresponding translation and rotation parameters.
-The supplementary material explains how these parameters can be generated.
-The structure of the sample_data folder can be used as a reference for organizing the input data.
+To test the code, we provided sythetic sample data from Las Vegas
+in the `sample_data/vegas` folder. For the trainining, validation and test sets,
+we provided the golden labels  and transformation parameters for generating misaligned labels in `data.csv`.
+To reproduce the results, we provided sythetic datasets from three cities in this
+[link](https://sid.erda.dk/sharelink/fvQxXCQzU6). The folder structure of these datasets is
+the same as that of the sample data.
+We also provided the dataset used for qualitative evaluation in the same
+[link](https://sid.erda.dk/sharelink/fvQxXCQzU6).
+The supplementary material of our paper explains how all these datasets were generated.
+The real-world dataset, ReBO, can be downloaded by following the instructions
+in the [DragOSM](https://github.com/likaiucas/DragOSM) repository. Please read the dataset section
+in our paper about how we split and train on ReBO dataset.
 
 ## Train
 To evaluate the model on the test set from the sample data, run:
