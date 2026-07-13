@@ -40,16 +40,17 @@ in the [DragOSM](https://github.com/likaiucas/DragOSM) repository. Please read t
 in our paper about how we split and train on ReBO dataset.
 
 ## Train
+To train the model on the sample data provided in the repository, run:
+```python train.py --keywod test_run --datadire sample_data/vegas```
+Change the ```--datadire``` argument to run on other datasets, for example three other cities.
+
+To train the model on the qualitative evaluation dataset or custom dataset, choose dataset name run:
+```python train.py --keywod test_run --datadire sample_data/qualitative```
+
+## Test
 To evaluate the model on the test set from the sample data, run:
 ```python test.py --keywod test_run```
 Similar to training, additional dataset directories can be configured in the train.py file.
-
-To train the model on the sample data, run:
-```python train.py --keywod test_run```
-New directories can be added in the `train.py` file.
-
-## Test
-
 ## Align and segment
 
 ## Citing
