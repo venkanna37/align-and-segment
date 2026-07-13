@@ -105,15 +105,7 @@ class AlignTraining:
         model = torch.nn.Sequential(snet, tnet)
         model.to(self.device)
 
-        # load pretrained TNet weights
-        if self.use_tnet_weights:
-            weights_path = os.path.join(self.checkpoints_org, 'tnet_r_3e1', 'best_val.pth')
-            checkpoint = torch.load(weights_path, map_location=self.device)
-            model[1].load_state_dict(checkpoint['model'], strict=True)
-            for param in model[1].parameters():
-                param.requires_grad = False
-        else:
-            torch.nn.init.zeros_(tnet.fc.weight)
+        torch.nn.init.zeros_(tnet.fc.weight)
 
         trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = torch.optim.AdamW(trainable_params, lr=self.learning_rate)
@@ -183,55 +175,20 @@ class AlignTraining:
                 t1, _ = model[1](input_tnet1)
                 loss1_squares = (g1_inv - t1) ** 2
 
-                if self.loss_setting == 1:
-                    aff_loss = loss1_squares.mean() * self.reg_loss_wt
-
-                else:
-                    aug_mask2, g2 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
-                    input_tnet2 = torch.cat((mask, aug_mask2), dim=1)
-                    t2, _ = model[1](input_tnet2)
-                    first_part = add_third_row(t1) @ add_third_row(g1)
-                    second_part = add_third_row(t2) @ add_third_row(g2)
-                    loss2_squares = (first_part - second_part) ** 2
-
-                    if self.loss_setting == 2:
-                        aff_loss = loss2_squares.mean() * self.reg_loss_wt
-
-                    elif self.loss_setting == 3:
-                        aff_loss = (loss1_squares.mean() + loss2_squares.mean()) * self.reg_loss_wt
-
-                    elif self.loss_setting in [4, 5, 6]:
-                        reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
-                        reg_weight_mask = (spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
-                        reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
-                        iou_loss = iou_creterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
-                        iou_loss_avg += iou_loss.item()
-                        dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
-
-                        if self.loss_setting == 4:
-                            aff_loss = loss1_squares.mean() * self.reg_loss_wt
-                        elif self.loss_setting == 5:
-                            aff_loss = loss2_squares.mean() * self.reg_loss_wt
-                        elif self.loss_setting == 6:
-                            aff_loss = torch.tensor(0.0, device=self.device)
-                    else:
-                        raise NotImplementedError
-
-                if not self.use_tnet_weights:
-                    if self.loss_setting == 6:
-                        loss += iou_loss
-                    elif self.loss_setting in [4, 5]:
-                        loss += iou_loss
-                        loss += aff_loss
-                    else:
-                        loss += aff_loss
-
+                aff_loss = loss1_squares.mean() * self.reg_loss_wt
                 aff_loss_avg += aff_loss.item()
                 dict_for_postfix["reg_ls"] = f'{aff_loss_avg / (i + 1):.4f}'
 
+                reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
+                reg_weight_mask = (spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
+                reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
+                iou_loss = iou_creterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
+                iou_loss_avg += iou_loss.item()
+                dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
+
+                loss = aff_loss + iou_loss
                 tot_loss_avg += loss.item()
                 dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
-
 
                 # backpropagation
                 optimizer.zero_grad()
@@ -318,61 +275,21 @@ class AlignTraining:
                         input_tnet1 = torch.cat((mask, aug_mask1), dim=1)
                         t1, _ = model[1](input_tnet1)
                         loss1_squares = (g1_inv - t1) ** 2
-
-                        if self.loss_setting == 1:
-                            aff_loss = loss1_squares.mean() * self.reg_loss_wt
-
-                        else:
-                            aug_mask2, g2 = transform_mask_with_random_affine(mask, self.device,
-                                                                              max_shift=self.max_shift)
-                            input_tnet2 = torch.cat((mask, aug_mask2), dim=1)
-                            t2, _ = model[1](input_tnet2)
-                            first_part = add_third_row(t1) @ add_third_row(g1)
-                            second_part = add_third_row(t2) @ add_third_row(g2)
-                            loss2_squares = (first_part - second_part) ** 2
-
-                            if self.loss_setting == 2:
-                                aff_loss = loss2_squares.mean() * self.reg_loss_wt
-
-                            elif self.loss_setting == 3:
-                                aff_loss = (loss1_squares.mean() + loss2_squares.mean()) * self.reg_loss_wt
-
-                            elif self.loss_setting in [4, 5, 6]:
-                                reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
-                                reg_weight_mask = (
-                                            spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
-                                reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
-                                iou_loss = iou_creterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
-                                iou_loss_avg += iou_loss.item()
-                                dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
-
-                                if self.loss_setting == 4:
-                                    aff_loss = loss1_squares.mean() * self.reg_loss_wt
-                                elif self.loss_setting == 5:
-                                    aff_loss = loss2_squares.mean() * self.reg_loss_wt
-                                elif self.loss_setting == 6:
-                                    aff_loss = torch.tensor(0.0, device=self.device)
-                            else:
-                                raise NotImplementedError
-                    if not self.use_tnet_weights:
-                        if self.loss_setting == 6:
-                            loss += iou_loss
-                        elif self.loss_setting in [4, 5]:
-                            loss += iou_loss
-                            loss += aff_loss
-                        else:
-                            loss += aff_loss
-
+                        aff_loss = loss1_squares.mean() * self.reg_loss_wt
                         aff_loss_avg += aff_loss.item()
                         dict_for_postfix["reg_ls"] = f'{aff_loss_avg / (i + 1):.4f}'
 
+                        reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
+                        reg_weight_mask = (
+                                    spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
+                        reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
+                        iou_loss = iou_creterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
+                        iou_loss_avg += iou_loss.item()
+                        dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
+
+                        loss = aff_loss + iou_loss
                         tot_loss_avg += loss.item()
                         dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
-
-                        # # update pred_mask, aligned_label and weight_masj for 256 patch_size
-                        # if self.patch_size == 256:
-                        #     mask, pred_mask, aligned_label, weight_mask = merge_image(mask, pred_mask, aligned_label,
-                        #                                                               weight_mask)
 
                         # get val metrics
                         pred_mask, weight_mask = (pred_mask > 0).to(torch.uint8), (weight_mask > 0).to(torch.uint8)

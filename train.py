@@ -68,7 +68,7 @@ if __name__ == '__main__':
         params['noise_type'] = 'r'
         train = training_qualitative.AlignTraining(**params)
     elif args.dataset_type == 'rebo':
-        train = training.AlignTraining(**params)
+        train = training_rebo.AlignTraining(**params)
     else:
         raise Exception("Unknown dataset type")
 
