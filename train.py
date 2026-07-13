@@ -34,11 +34,11 @@ if __name__ == '__main__':
                         help='data directory with input data', default="sample_data/vegas")
     parser.add_argument("--checkpoints_dir", type=str,
                         help='output directory to save models, logs', default="runs")
-    
+
     # model parameters
     parser.add_argument("--model_name", type=str,
-                        help="Model name is combination of architecture in SNet and TNet", default="method4")
-    # method1:, method2:, method3:, method4:,
+                        help="Model name is combination of architecture in SNet and TNet", default="method4c")
+    # check pipelines/models/load_models.py for more details about model_names
     parser.add_argument("--tnet_backbone", type=str,
                         help="TNet backbone name", default="vitsmall")
 
