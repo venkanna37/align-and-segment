@@ -1,6 +1,7 @@
 """
 Training AnS with synthetic dataset
 """
+
 import os
 import torch
 import wandb
@@ -37,7 +38,7 @@ class AlignTraining:
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
         self.sample_size = kwargs.get('sample_size', None)
-        self.city = kwargs.get('city', None)
+        self.data_type = kwargs.get('data_type', 'synthetic')
         self.single_index = kwargs.get('single_index', None)
         self.synth_method = kwargs.get('synth_method', 1)  # 1: Uniform
         self.aug_shift = kwargs.get('aug_shift', None)
@@ -86,7 +87,7 @@ class AlignTraining:
         train_set = AlignDatagen(self.data_dir,
                                  sample_size=self.sample_size,
                                  set_name="train",
-                                 city=self.city,
+                                 data_type=self.data_type,
                                  single_index=self.single_index,
                                  synth_method=self.synth_method,
                                  aug_shift=self.aug_shift,
@@ -101,7 +102,7 @@ class AlignTraining:
         val_set = AlignDatagen(self.data_dir,
                                sample_size=self.sample_size,
                                set_name="val",
-                               city=self.city,
+                               data_type=self.data_type,
                                single_index=self.single_index,
                                synth_method=self.synth_method,
                                patch_size=self.patch_size,

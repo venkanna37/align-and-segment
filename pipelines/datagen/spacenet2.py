@@ -14,7 +14,7 @@ class AlignDatagen:
     def __init__(self,
                  data_dir,
                  sample_size=None,
-                 city=None,
+                 data_type='synthetic',
                  single_index=None,
                  set_name=None,
                  synth_method=50,
@@ -28,17 +28,17 @@ class AlignDatagen:
         self.synth_method = synth_method
         self.aug_shift = aug_shift
         self.noise_type = noise_type
-        self.city = city
+        self.data_type = data_type
         self.data_dir = data_dir
         self.set_name = set_name
         self.rescale_value = rescale_value
-        if self.city == 'AOI_9_San_Juan':
-            file_dir = os.path.join(self.data_dir, self.city, 'patches', 'patch_boundaries_split.geojson')
+        if self.data_type == 'real':
+            file_dir = os.path.join(self.data_dir, 'patch_boundaries_split.geojson')  #fixme
             self.df = gpd.read_file(file_dir)
         else:
-            file_dir = os.path.join(self.data_dir, self.city, 'patches', 'all_rows_splits.csv')
+            file_dir = os.path.join(self.data_dir, 'data.csv')
             self.df = pd.read_csv(file_dir)
-        print(f"Number of images in {self.city} are: {len(self.df)}")
+        print(f"Number of images in {self.data_type} dataset are: {len(self.df)}")
 
         if self.set_name is not None:
             self.df = self.df[self.df['split'] == self.set_name].reset_index(drop=True)
@@ -47,11 +47,6 @@ class AlignDatagen:
             self.df = self.df.sample(n=sample_size, random_state=42).reset_index(drop=True)
             print(f"Sampled {sample_size} images from the dataset")
         print(f"Final number of images are: {len(self.df)}")
-
-        # single datapoint with single_index
-        if single_index is not None:
-            self.df = self.df.iloc[[single_index]].reset_index(drop=True)
-            print(f"Single image selected for training: {self.df['image_path'].values[0]}")
 
         # augmentation chances
         self.errosion_chance = 0.15
@@ -92,8 +87,8 @@ class AlignDatagen:
             aug_shift_rot = round(self.aug_shift/2)
             theta += np.random.randint(-aug_shift_rot, aug_shift_rot)
 
-        image_path = os.path.join(f"{self.data_dir}/{self.city}/splits/{self.set_name}/images/", self.df.iloc[index]['filename'])
-        label_path = os.path.join(f"{self.data_dir}/{self.city}/splits/{self.set_name}/labels/", self.df.iloc[index]['filename'])
+        image_path = os.path.join(self.data_dir, self.set_name, 'images', self.df.iloc[index]['filename'])
+        label_path = os.path.join(self.data_dir, self.set_name, 'labels', self.df.iloc[index]['filename'])
 
         with rasterio.open(image_path) as src:
             x = src.read().astype(np.float32) / self.rescale_value

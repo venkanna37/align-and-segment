@@ -30,11 +30,11 @@ if __name__ == '__main__':
                         help="Augmentation for SNet", action=argparse.BooleanOptionalAction, default=False)
 
     # data directory parameters
-    parser.add_argument("--out_dir", type=str,
-                        help='output directory to save models, logs', default="runs")
     parser.add_argument("--data_dir", type=str,
                         help='data directory with input data', default="sample_data/vegas")
-
+    parser.add_argument("--checkpoints_dir", type=str,
+                        help='output directory to save models, logs', default="runs")
+    
     # model parameters
     parser.add_argument("--model_name", type=str,
                         help="Model name is combination of architecture in SNet and TNet", default="method4")
