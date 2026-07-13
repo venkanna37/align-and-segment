@@ -16,7 +16,6 @@ if __name__ == '__main__':
     # parameters
     parser.add_argument("--keyword", type=str,
                         help='keyword used in saving pretrained model', default="test")
-    parser.add_argument("--dataset_type", type=str, default="synthetic")
     parser.add_argument("--server", type=str, default="lumi")
     parser.add_argument("--set_name", type=str, default='test')
     parser.add_argument("--batch_size", type=int, default=48)
@@ -34,12 +33,13 @@ if __name__ == '__main__':
     params['weights_path'] = os.path.join(params['checkpoints_dir'], args.keyword, f'best{args.wt_file}.pth')
     model_weights = torch.load(params['weights_path'], map_location='cpu')
     params['patch_size'] = model_weights['params']['patch_size']
+    params['dataset_type'] = model_weights['params']['dataset_type']
 
     # set data and output directories based on server
-    if args.dataset_type == "synthetic":
+    if params['dataset_type'] == "synthetic":
         params['noise_type'] = model_weights['params']['noise_type']
         params['synth_method'] = model_weights['params']['synth_method']
-        params['city'] = model_weights['params']['city']
+
     params['model_name'] = model_weights['params']['model_name']
     params['tnet_backbone'] = model_weights['params']['tnet_backbone']
 

@@ -30,7 +30,7 @@ class AlignPrediction():
         self.batch_size = kwargs.get('batch_size', 2)
         self.checkpoints_dir = kwargs.get('checkpoints_dir', None)
         self.sample_size = kwargs.get('sample_size', None)
-        self.city = kwargs.get('city', None)
+        self.dataset_type = kwargs.get('dataset_type', None)
         self.synth_method = kwargs.get('synth_method', 1)  # 1: Uniform
         self.set_name = kwargs.get('set_name', 'test')
         self.noise_type = kwargs.get('noise_type', 'u')
@@ -64,7 +64,7 @@ class AlignPrediction():
             test_set = AlignDatagen_Spacenet(self.data_dir,
                                     sample_size=self.sample_size,
                                     set_name=self.set_name,
-                                    city=self.city,
+                                    dataset_type=self.dataset_type,
                                     synth_method=self.synth_method,
                                     patch_size=self.patch_size,
                                     noise_type=self.noise_type)
