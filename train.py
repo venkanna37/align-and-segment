@@ -1,8 +1,6 @@
 """
 # Training AnS
 """
-import sys
-
 import argparse
 from pipelines.training import training, training_qualitative, training_rebo
 
@@ -11,7 +9,7 @@ if __name__ == '__main__':
     parser.add_argument("--keyword", type=str, default="test")
 
     # data parameters
-    parser.add_argument("--data_type", type=str,
+    parser.add_argument("--dataset_type", type=str,
                         help="sythetic, real or rebo", default='synthetic')
     parser.add_argument("--noise_type", type=str,
                         help="u: random noise, b: systematic noise", default='u')
@@ -64,12 +62,12 @@ if __name__ == '__main__':
     params = vars(args)
 
     # initialize training object and train model
-    if args.data_type == 'synthetic':
+    if args.dataset_type == 'synthetic':
         train = training.AlignTraining(**params)
-    elif args.data_type == 'real':
+    elif args.dataset_type == 'real':
         params['noise_type'] = 'r'
         train = training_qualitative.AlignTraining(**params)
-    elif args.data_type == 'rebo':
+    elif args.dataset_type == 'rebo':
         train = training.AlignTraining(**params)
     else:
         raise Exception("Unknown dataset type")

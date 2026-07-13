@@ -37,7 +37,7 @@ class AlignTraining:
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
         self.sample_size = kwargs.get('sample_size', None)
-        self.data_type = kwargs.get('data_type', 'synthetic')
+        self.dataset_type = kwargs.get('dataset_type', 'synthetic')
         self.synth_method = kwargs.get('synth_method', 50)  # Magnitude of misalignment
         self.aug_shift = kwargs.get('aug_shift', None)
         self.max_shift = kwargs.get('max_shift', 100)       # this is for reg_loss
@@ -82,7 +82,7 @@ class AlignTraining:
         train_set = AlignDatagen(self.data_dir,
                                  sample_size=self.sample_size,
                                  set_name="train",
-                                 data_type=self.data_type,
+                                 dataset_type=self.dataset_type,
                                  synth_method=self.synth_method,
                                  aug_shift=self.aug_shift,
                                  patch_size=self.patch_size,
@@ -96,7 +96,7 @@ class AlignTraining:
         val_set = AlignDatagen(self.data_dir,
                                sample_size=self.sample_size,
                                set_name="val",
-                               data_type=self.data_type,
+                               dataset_type=self.dataset_type,
                                synth_method=self.synth_method,
                                patch_size=self.patch_size,
                                noise_type= self.noise_type)
