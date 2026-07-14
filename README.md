@@ -1,7 +1,7 @@
 # This code is under preparation. It will be ready soon!
 
 # Align and Segment (AnS): Unsupervised Learning for Building Segmentation From Misaligned Labels
-[![arXiv Paper](https://shields.io)](https://arxiv.org/pdf/2607.10841)
+[arXiv Paper](https://arxiv.org/pdf/2607.10841)
 
 This is the official repository for the ECCV 2026 paper "Align and Segment:
 Unsupervised Learning for Building Segmentation From Misaligned Labels".
