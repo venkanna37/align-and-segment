@@ -16,7 +16,7 @@ from pipelines.models.load_models import load_model
 from pipelines.datagen.rebo_datagen import AlignDatagen
 from pipelines.models.spatial_transformer_network import spatial_transformer_network
 from pipelines.utils.process_batch import transform_mask_with_random_affine
-from pipelines.utils.matrices import inverse_affine_matrix, add_third_row
+from pipelines.utils.matrices import inverse_affine_matrix
 from pipelines.utils.process_tensor import split_3_image
 from .loss_functions import loss_for_seg
 

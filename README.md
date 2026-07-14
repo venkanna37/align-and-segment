@@ -1,6 +1,7 @@
 # This code is under preparation. It will be ready soon!
 
 # Align and Segment (AnS): Unsupervised Learning for Building Segmentation From Misaligned Labels
+[![arXiv Paper](https://shields.io)](https://arxiv.org/pdf/2607.10841)
 
 This is the official repository for the ECCV 2026 paper "Align and Segment:
 Unsupervised Learning for Building Segmentation From Misaligned Labels".
@@ -46,6 +47,10 @@ Change the ```--datadire``` argument to run on other datasets, for example three
 
 To train the model on the qualitative evaluation dataset or custom dataset, choose dataset name run:
 ```python train.py --keywod test_run --datadire sample_data/qualitative```
+
+To train model on ReBO dataset, first generated roof labels and osm labels as masks.
+Then train the model using the following command:
+```python train.py --keywod test_run --datadire sample_data/ReBO```
 
 ## Test
 To evaluate the model on the test set from the sample data, run:
