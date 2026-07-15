@@ -16,7 +16,8 @@ without using any **golden labels**. The outline of this repository is given as 
 * [**Citing**](#citing)
 
 ## Requirements
-To run our code, all packages listed in `requirements.txt` must be installed.
+
+[//]: # (To run our code, all packages listed in `requirements.txt` must be installed.)
 All experiments in the paper used a DINOv3 encoder in the segmentation network (SNet).
 To reproduce the results or use the same encoder,
 the [dinov3 GitHub repository](https://github.com/facebookresearch/dinov3) must
@@ -25,6 +26,23 @@ In addition, the pretrained ConvNeXt-Tiny model trained on web images should be
 downloaded and placed inside the cloned dinov3 repository folder.
 AnS can run without downloading the dinov3 repository and the pretrained model,
 but it takes more time because training must be done from scratch.
+All experiments without using DINOv3 can be done by installing packages from  `requirements.txt`,
+for example in conda evironment.
+```
+conda create -n "ans" python=3.11.0
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+pip install -r requirements.txt
+```
+
+To use, DINOv3, clone the repository outside `align-and-segment` folder.
+```
+cd ..
+git clone https://github.com/facebookresearch/dinov3.git
+```
+Make sure the ConvNeXt-Tiny pretrained model placed inside dinov3 folde.
+Follow the guidelines from dinov3 repository to download the pretrained model.
+The filename looks something like this: dinov3_convnext_tiny_pretrain_lvd1689m-********.pth
+
 
 ## Datasets
 To test the code, we provided sythetic sample data from Las Vegas
