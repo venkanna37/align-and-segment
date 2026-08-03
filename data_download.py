@@ -14,17 +14,18 @@ from torchvision.datasets.utils import download_url, extract_archive
 
 
 # List of available datasets
-datasets = ['khartoum.zip', 'lasvegas.zip', 'paris', 'sanjuan.zip']
+datasets = ['khartoum.zip', 'lasvegas.zip', 'paris.zip', 'sanjuan.zip']
 
 
 def download_data(dataset_name: str, outdir: str):
     """ Download the data """
     # check filename and define the URL
+    outdir = os.path.join(outdir, dataset_name)
     filename = f"{dataset_name}.zip"
-    if dataset_name in datasets:
-        url = f"https://sid.erda.dk/share_redirect/fOxSHwH5hr/{filename}"
+    if filename in datasets:
+        url = f"https://sid.erda.dk/share_redirect/fvQxXCQzU6/{filename}"
     else:
-        raise ValueError(f"Dataset/ Model name: {dataset_name} is not available.")
+        raise ValueError(f"Dataset/ Model name: {filename} is not available.")
 
     # Download and extract file.
     download_url(url, ".", filename)
