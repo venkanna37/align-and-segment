@@ -7,13 +7,14 @@ import torch
 import torch.nn as nn
 from torchvision.models import convnext_tiny
 from .snet_conv import DINOv3Decoder
-
+from transformers import AutoModel
 
 class Dinov3(torch.nn.Module):
-    def __init__(self, number_of_outputs=4):
+    def __init__(self, number_of_outputs=4, dinov3_repo_dir=None, weights_path=None):
         super(Dinov3, self).__init__()
-        REPO_DIR = '../../../dinov3'  #fixme change directories
-        WEIGHTS_PATH = '../../../dinov3/dinov3_convnext_tiny_pretrain_lvd1689m-21b726bb.pth'
+        REPO_DIR = dinov3_repo_dir
+        WEIGHTS_PATH = weights_path
+        # WEIGHTS_PATH = '../../../dinov3/dinov3_convnext_tiny_pretrain_lvd1689m-21b726bb.pth'
         self.number_of_outputs = number_of_outputs
         self.dinov3 = torch.hub.load(REPO_DIR, 'dinov3_convnext_tiny',
                                source='local',
@@ -24,10 +25,12 @@ class Dinov3(torch.nn.Module):
 
 
 class Dinov3Seg(torch.nn.Module):
-    def __init__(self, in_channels=3):
+    def __init__(self, in_channels=3, dinov3_repo_dir=None, weights_path=None):
         super(Dinov3Seg, self).__init__()
 
-        self.dinov3 = Dinov3()
+        assert dinov3_repo_dir is not None and weights_path is not None, 'Missing important information'
+
+        self.dinov3 = Dinov3(dinov3_repo_dir=dinov3_repo_dir, weights_path=weights_path)
         self.skip_channels = 64
         self.first_block = nn.Sequential(
             nn.Conv2d(in_channels, self.skip_channels, kernel_size=1, stride=1, bias=True),

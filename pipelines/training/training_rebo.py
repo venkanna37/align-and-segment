@@ -14,7 +14,7 @@ from segmentation_models_pytorch.losses.constants import BINARY_MODE
 # custom imports
 from pipelines.models.load_models import load_model
 from pipelines.datagen.rebo_datagen import AlignDatagen
-from pipelines.models.spatial_transformer_network import spatial_transformer_network
+from pipelines.models.stn import spatial_transformer_network
 from pipelines.utils.process_batch import transform_mask_with_random_affine
 from pipelines.utils.matrices import inverse_affine_matrix
 from pipelines.utils.process_tensor import split_3_image

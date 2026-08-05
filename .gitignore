@@ -6,3 +6,4 @@ runs/
 sample_data/ReBO/
 datasets/
 *.zip
+dinov3/

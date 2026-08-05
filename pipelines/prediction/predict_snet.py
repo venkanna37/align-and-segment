@@ -14,7 +14,7 @@ from segmentation_models_pytorch.losses.constants import BINARY_MODE
 from pipelines.models.load_models import load_model
 from pipelines.datagen.rebo_datagen import AlignDatagen
 from pipelines.datagen.spacenet2 import AlignDatagen as AlignDatagen_Spacenet
-from pipelines.models.spatial_transformer_network import spatial_transformer_network
+from pipelines.models.stn import spatial_transformer_network
 from pipelines.utils.matrices import inverse_affine_matrix, add_third_row
 from pipelines.training.loss_functions import loss_for_seg
 

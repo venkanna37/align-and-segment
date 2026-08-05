@@ -43,6 +43,7 @@ Make sure the ConvNeXt-Tiny pretrained model placed inside dinov3 folde.
 Follow the guidelines from dinov3 repository to download the pretrained model.
 The filename looks something like this: dinov3_convnext_tiny_pretrain_lvd1689m-********.pth
 
+https://huggingface.co/facebook/dinov3-convnext-tiny-pretrain-lvd1689m
 
 ## Datasets
 To test the code, we provided sythetic sample data from Las Vegas

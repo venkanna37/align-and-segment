@@ -38,9 +38,10 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoints_dir', type=str,  default='./runs',
                         help='output directory to save check points and logs')
 
-    # Model parameters #fixme update model_name choices
+    # Model parameters
     parser.add_argument('--model_name', type=str,
-                        choices=['method4c', 'method2'], default='method4c',
+                        choices=['method1', 'method1a', 'method1b', 'method1c', 'method2', 'method2a', 'method2b',
+                                 'method2c'], default='method1',
                         help="Model name is combination of types of architecture in SNet and TNet")
     # check pipelines/models/load_models.py for more details about model_names
     parser.add_argument('--tnet_backbone', type=str, default="vitsmall",

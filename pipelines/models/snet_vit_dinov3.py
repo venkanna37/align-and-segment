@@ -7,6 +7,7 @@ import torch.nn as nn
 from .vits import ViT
 from .snet_vit import DINOv3Decoder
 
+
 class Dinov3Seg(torch.nn.Module):
     def __init__(self, in_channels=3):
         super(Dinov3Seg, self).__init__()
