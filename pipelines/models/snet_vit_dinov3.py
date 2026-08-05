@@ -1,53 +1,11 @@
 """
-DINOv3 segmentation model with convolutional decoder and one skip connection from the input image
-Currently supports only DINOv3 ViT-S/16 backbone
+SNet with ConvNeXt-Tiny encoder, DINOv3 weights and custom decoder
 """
 
 import torch
 import torch.nn as nn
 from .vits import ViT
-
-
-class DINOv3Decoder(torch.nn.Module):
-    def __init__(self, in_channels):
-        super(DINOv3Decoder, self).__init__()
-
-        self.in_channels = in_channels
-        self.decoder = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels, 3, padding=1),
-            nn.GELU(),
-            nn.BatchNorm2d(in_channels),
-
-            nn.UpsamplingBilinear2d(scale_factor=2),
-            nn.Conv2d(in_channels, in_channels//2, 3, padding=1),
-            nn.GELU(),
-            nn.BatchNorm2d(in_channels//2),
-            nn.Conv2d(in_channels//2, in_channels//2, 3, padding=1),
-            nn.GELU(),
-            nn.BatchNorm2d(in_channels//2),
-
-            nn.UpsamplingBilinear2d(scale_factor=2),
-            nn.Conv2d(in_channels//2, in_channels//4, 3, padding=1),
-            nn.GELU(),
-            nn.BatchNorm2d(in_channels//4),
-            nn.Conv2d(in_channels//4, in_channels//4, 3, padding=1),
-            nn.GELU(),
-            nn.BatchNorm2d(in_channels//4),
-
-            nn.UpsamplingBilinear2d(scale_factor=2),
-            nn.Conv2d(in_channels//4, in_channels//6, 3, padding=1),
-            nn.GELU(),
-            nn.BatchNorm2d(in_channels//6),
-            nn.Conv2d(in_channels//6, in_channels//6, 3, padding=1),
-            nn.GELU(),
-            nn.BatchNorm2d(in_channels//6),
-
-            nn.UpsamplingBilinear2d(scale_factor=2)
-        )
-
-    def forward(self, x):
-        return self.decoder(x)
-
+from .snet_vit import DINOv3Decoder
 
 class Dinov3Seg(torch.nn.Module):
     def __init__(self, in_channels=3):

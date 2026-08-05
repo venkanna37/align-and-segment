@@ -1,24 +1,19 @@
+"""
+TNet built with different sizes of ViTs
+"""
 import torch
 import torch.nn as nn
-
-from .resnets import ResNet11, ResNet18, ResNet34
 from .vits import ViT
 
 
 class TNet(nn.Module):
     def __init__(self, in_channels=2, backbone_name='vitsmall'):
         super().__init__()
-        self.encoder_channels = [64, 64, 128, 256, 512]
-        fc_channels = self.encoder_channels[-1]
         self.dim_size = 384
         self.backbone_name = backbone_name
-        if self.backbone_name == 'resnet11':
-            self.encoder = ResNet11(in_channels, self.encoder_channels)
-        elif self.backbone_name == 'resnet18':
-            self.encoder = ResNet18(in_channels, self.encoder_channels)
-        elif self.backbone_name == 'resnet34':
-            self.encoder = ResNet34(in_channels, self.encoder_channels)
-        elif self.backbone_name == 'vitsmall':
+
+        # ViT with different sizes
+        if self.backbone_name == 'vitsmall':
             self.encoder = ViT(channels=in_channels)
             fc_channels = self.dim_size
         elif self.backbone_name == 'vitmedium':
@@ -36,15 +31,10 @@ class TNet(nn.Module):
         self.fc = nn.Linear(fc_channels, 3, bias=False)
 
     def forward(self, x):
+
         encoder_features = self.encoder(x)
-        if "vit" in self.backbone_name:
-            encoder_features = encoder_features.mean(dim=1)
-            final_values = self.fc(encoder_features)
-        else:
-            final_features = encoder_features[-1]
-            x = self.pool(final_features)
-            x = x.view(final_features.size(0), -1)
-            final_values = self.fc(x)
+        encoder_features = encoder_features.mean(dim=1)
+        final_values = self.fc(encoder_features)
 
         params = torch.tanh(final_values) * 0.35  # predicts misalignment range from -128 to 128 pixels
         theta = params[:, 0]
