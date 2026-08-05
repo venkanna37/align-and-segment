@@ -9,6 +9,7 @@ from tqdm import tqdm
 from datetime import datetime
 from torchmetrics import JaccardIndex
 from torch.utils.data import DataLoader
+from huggingface_hub import snapshot_download
 from segmentation_models_pytorch.losses import JaccardLoss
 from segmentation_models_pytorch.losses.constants import BINARY_MODE
 
@@ -37,8 +38,8 @@ class AlignTraining:
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
         self.sample_size = kwargs.get('sample_size', None)
-        self.dataset_type = kwargs.get('dataset_type', 'synthetic')
-        self.synth_method = kwargs.get('synth_method', 50)  # Magnitude of misalignment
+        self.dataset_name = kwargs.get('dataset_name', 'sample_data')
+        self.synth_method = kwargs.get('misalign_magnitude', 50)
         self.aug_shift = kwargs.get('aug_shift', None)
         self.max_shift = kwargs.get('max_shift', 100)       # this is for reg_loss
         self.do_augh = kwargs.get('do_augh', False)
@@ -79,15 +80,20 @@ class AlignTraining:
 
     def train(self):
 
-        # download dataset from huggingface_hub
-        # from huggingface_hub import snapshot_download
-        # snapshot_download(repo_id="venkanna37/align-and-segment", repo_type="dataset",
-        #                   allow_patterns=["sample_data/train/**"], local_dir="data")
+        # check if data directory exists, if not create a folder
+        if not os.path.exists(self.data_dir):
+            os.mkdir(self.data_dir)
+        # if dataset_name exists within the data directory, if not, download from hugging face
+        if not os.path.exists(os.path.join(self.data_dir, 'sample_data')):
+            #fixme check if complete data exist, e.g. train and val sets, and images and labels in both
+            #fixme also add new argparse argument to download data from different cities
+            snapshot_download(repo_id='venkanna37/align-and-segment', repo_type='dataset',
+                              allow_patterns=['sample_data/**'], local_dir=self.data_dir)
 
         train_set = AlignDatagen(self.data_dir,
                                  sample_size=self.sample_size,
-                                 set_name="train",
-                                 dataset_type=self.dataset_type,
+                                 set_name='train',
+                                 dataset_name=self.dataset_name,
                                  synth_method=self.synth_method,
                                  aug_shift=self.aug_shift,
                                  patch_size=self.patch_size,
@@ -100,8 +106,8 @@ class AlignTraining:
 
         val_set = AlignDatagen(self.data_dir,
                                sample_size=self.sample_size,
-                               set_name="val",
-                               dataset_type=self.dataset_type,
+                               set_name='val',
+                               dataset_name=self.dataset_name,
                                synth_method=self.synth_method,
                                patch_size=self.patch_size,
                                noise_type= self.noise_type)

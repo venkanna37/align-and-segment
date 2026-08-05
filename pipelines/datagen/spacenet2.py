@@ -17,7 +17,7 @@ class AlignDatagen:
     def __init__(self,
                  data_dir,
                  sample_size=None,
-                 dataset_type='synthetic',  # fixme
+                 dataset_name='sample_data',
                  set_name=None,
                  synth_method=50,
                  aug_shift=0,
@@ -30,18 +30,18 @@ class AlignDatagen:
         self.synth_method = synth_method
         self.aug_shift = aug_shift
         self.noise_type = noise_type
-        self.dataset_type = dataset_type
+        self.dataset_name = dataset_name
         self.data_dir = data_dir
         self.set_name = set_name
         self.rescale_value = rescale_value
-        if self.dataset_type == 'real':
+        if self.dataset_name == 'real':
             self.noise_type = 'r'
             file_dir = os.path.join(self.data_dir, 'patch_boundaries_split.geojson')  #fixme
             self.df = gpd.read_file(file_dir)
         else:
-            file_dir = os.path.join(self.data_dir, 'data.csv')
+            file_dir = os.path.join(self.data_dir, self.dataset_name, 'data.csv')
             self.df = pd.read_csv(file_dir)
-        print(f"Number of images in {self.dataset_type} dataset are: {len(self.df)}")
+        print(f"Number of images in {self.dataset_name} dataset are: {len(self.df)}")
 
         if self.set_name is not None:
             self.df = self.df[self.df['split'] == self.set_name].reset_index(drop=True)
@@ -92,8 +92,8 @@ class AlignDatagen:
             aug_shift_rot = round(self.aug_shift/2)
             theta += np.random.randint(-aug_shift_rot, aug_shift_rot)
 
-        image_path = os.path.join(self.data_dir, self.set_name, 'images', self.df.iloc[index]['filename'])
-        label_path = os.path.join(self.data_dir, self.set_name, 'labels', self.df.iloc[index]['filename'])
+        image_path = os.path.join(self.data_dir, self.dataset_name, self.set_name, 'images', self.df.iloc[index]['filename'])
+        label_path = os.path.join(self.data_dir, self.dataset_name, self.set_name, 'labels', self.df.iloc[index]['filename'])
 
         with rasterio.open(image_path) as src:
             x = src.read().astype(np.float32) / self.rescale_value
