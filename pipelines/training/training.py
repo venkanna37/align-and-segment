@@ -84,11 +84,13 @@ class AlignTraining:
         if not os.path.exists(self.data_dir):
             os.mkdir(self.data_dir)
         # if dataset_name exists within the data directory, if not, download from hugging face
-        if not os.path.exists(os.path.join(self.data_dir, 'sample_data')):
+        if not os.path.exists(os.path.join(self.data_dir, self.dataset_name)):
             #fixme check if complete data exist, e.g. train and val sets, and images and labels in both
             #fixme also add new argparse argument to download data from different cities
             snapshot_download(repo_id='venkanna37/align-and-segment', repo_type='dataset',
-                              allow_patterns=['sample_data/**'], local_dir=self.data_dir)
+                              allow_patterns=[f'{self.dataset_name}/**'], local_dir=self.data_dir)
+        else:
+            print(f'The dataset {self.dataset_name} already downloaded')
 
         train_set = AlignDatagen(self.data_dir,
                                  sample_size=self.sample_size,
