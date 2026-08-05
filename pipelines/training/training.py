@@ -79,6 +79,11 @@ class AlignTraining:
 
     def train(self):
 
+        # download dataset from huggingface_hub
+        # from huggingface_hub import snapshot_download
+        # snapshot_download(repo_id="venkanna37/align-and-segment", repo_type="dataset",
+        #                   allow_patterns=["sample_data/train/**"], local_dir="data")
+
         train_set = AlignDatagen(self.data_dir,
                                  sample_size=self.sample_size,
                                  set_name="train",
