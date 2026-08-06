@@ -2,35 +2,31 @@
 SNet with ConvNeXt-Tiny encoder, DINOv3 weights and custom decoderer
 """
 
-
+import timm
 import torch
 import torch.nn as nn
 from torchvision.models import convnext_tiny
 from .snet_conv import DINOv3Decoder
-from transformers import AutoModel
+
 
 class Dinov3(torch.nn.Module):
-    def __init__(self, number_of_outputs=4, dinov3_repo_dir=None, weights_path=None):
+    def __init__(self, number_of_outputs=4):
         super(Dinov3, self).__init__()
-        REPO_DIR = dinov3_repo_dir
-        WEIGHTS_PATH = weights_path
-        # WEIGHTS_PATH = '../../../dinov3/dinov3_convnext_tiny_pretrain_lvd1689m-21b726bb.pth'
-        self.number_of_outputs = number_of_outputs
-        self.dinov3 = torch.hub.load(REPO_DIR, 'dinov3_convnext_tiny',
-                               source='local',
-                               weights=WEIGHTS_PATH)
+        self.number_of_outputs =number_of_outputs
+        self.dinov3 = timm.create_model('convnext_tiny.dinov3_lvd1689m',
+                                        pretrained=True,
+                                        features_only=True,
+                                        out_indices=tuple(range(4 - self.number_of_outputs, 4)))
 
     def forward(self, x):
-        return self.dinov3.get_intermediate_layers(x, n=self.number_of_outputs)
+        return self.dinov3(x)
 
 
 class Dinov3Seg(torch.nn.Module):
-    def __init__(self, in_channels=3, dinov3_repo_dir=None, weights_path=None):
+    def __init__(self, in_channels=3):
         super(Dinov3Seg, self).__init__()
 
-        assert dinov3_repo_dir is not None and weights_path is not None, 'Missing important information'
-
-        self.dinov3 = Dinov3(dinov3_repo_dir=dinov3_repo_dir, weights_path=weights_path)
+        self.dinov3 = Dinov3()
         self.skip_channels = 64
         self.first_block = nn.Sequential(
             nn.Conv2d(in_channels, self.skip_channels, kernel_size=1, stride=1, bias=True),
@@ -52,12 +48,8 @@ class Dinov3Seg(torch.nn.Module):
 
 
     def forward(self, x):
-        # use frozen features
+        # use dinov3 features
         encoder_feats = list(self.dinov3(x))
-        for i in range(len(encoder_feats)):
-            B, N, C = encoder_feats[i].shape
-            H = W = int(N ** 0.5)
-            encoder_feats[i] = encoder_feats[i].permute(0, 2, 1).reshape(B, C, H, W)
         decoder_feats = self.decoder(encoder_feats)
 
         skip_feats = self.first_block(x)
