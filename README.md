@@ -46,19 +46,7 @@ The filename looks something like this: dinov3_convnext_tiny_pretrain_lvd1689m-*
 https://huggingface.co/facebook/dinov3-convnext-tiny-pretrain-lvd1689m
 
 ## Datasets
-To test the code, we provided sythetic sample data from Las Vegas
-in the `sample_data/vegas` folder. For the trainining, validation and test sets,
-we provided the golden labels  and transformation parameters for generating misaligned labels in `data.csv`.
-To reproduce the results, we provided sythetic datasets from three cities in this
-[link](https://sid.erda.dk/sharelink/fvQxXCQzU6). The folder structure of these datasets is
-the same as that of the sample data.
-We also provided the dataset used for qualitative evaluation in the same
-[link](https://sid.erda.dk/sharelink/fvQxXCQzU6).
-The supplementary material of our paper explains how all these datasets were generated.
-The real-world dataset, ReBO, can be downloaded by following the instructions
-in the [DragOSM](https://github.com/likaiucas/DragOSM) repository. Please read the dataset section
-in our paper about how we split and train on ReBO dataset.
-l
+
 ## Train
 To train the model on the sample data provided in the repository, run:
 ```python train.py --keywod test_run --datadire sample_data/vegas```
