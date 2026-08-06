@@ -1,10 +1,19 @@
+"""
+Datagene that takes the ReBO data as input
+"""
+
+import os
 import torch
+import random
 import rasterio
 import numpy as np
-import pandas as pd
+from skimage import io
 import kornia.augmentation as K
 from kornia.geometry import vflip, hflip
+from pycocotools.coco import COCO
+from pycocotools import mask as maskUtils
 
+random.seed(42)
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -19,16 +28,23 @@ class AlignDatagen:
         self.sample_size = sample_size
         self.patch_size = patch_size
         self.data_dir = data_dir
-        self.set_name = set_name
         self.rescale_value = rescale_value
 
+        self.set_name = 'train' if set_name == 'val' else set_name
+        self.image_dir = os.path.join(data_dir, f'isra_{self.set_name}/')
+        self.annotation_path = os.path.join(data_dir, f'ReBO_{self.set_name}.json')
+        self.coco = COCO(self.annotation_path)
+        self.image_ids = self.coco.getImgIds()
 
-        file_dir = f"{self.data_dir}/all_rows_splits.csv"
-        self.df = pd.read_csv(file_dir)
+        if set_name == 'train' or set_name == 'val':
+            all_ids = set(self.image_ids)
+            counts = int(0.8 * len(all_ids))
+            train_ids = set(random.sample(all_ids, counts))
+            val_ids = list(all_ids - train_ids)
+            train_ids = list(train_ids)
+            self.image_ids = train_ids if set_name == 'train' else val_ids
 
-        if self.set_name is not None:
-            self.df = self.df[self.df['split'] == self.set_name].reset_index(drop=True)
-            print(f"Number of images in the {self.set_name} set are: {len(self.df)}")
+        self.len = len(self.image_ids)
 
         # augmentation chances
         self.pixel_noise_chance = 0.15
@@ -43,96 +59,63 @@ class AlignDatagen:
         self.pixel_drop_chance = 0.15
         self.pixel_drop_p = 0.05
 
+
+    def loadSample(self, idx):
+        idx = self.image_ids[idx]
+
+        # create an image
+        img = self.coco.loadImgs(idx)[0]
+        image_path = os.path.join(self.image_dir, img['file_name'])
+        image = io.imread(image_path)
+        image = image.transpose(2, 0, 1) / 255.0
+
+        # create labels
+        annotation_ids = self.coco.getAnnIds(imgIds=img['id'])
+        coco_annotations = self.coco.loadAnns(annotation_ids)
+        height, width = img['height'], img['width']
+        roof_mask = np.zeros((height, width), dtype=np.uint8)
+        osm_mask = np.zeros((height, width), dtype=np.uint8)
+
+        for ann in coco_annotations:
+            # roof mask
+            ann_copy = ann.copy()
+            ann_copy['segmentation'] = [ann['roof_mask']]
+            rle = self.coco.annToRLE(ann_copy)
+            mask = maskUtils.decode(rle)
+            roof_mask = np.logical_or(roof_mask, mask).astype(np.uint8)
+
+            # osm mask
+            ann_copy = ann.copy()
+            ann_copy['segmentation'] = [ann['osm_mask']]
+            rle = self.coco.annToRLE(ann_copy)
+            mask = maskUtils.decode(rle)
+            osm_mask = np.logical_or(osm_mask, mask).astype(np.uint8)
+
+        return image, roof_mask, osm_mask
+
+
     def __len__(self):
         'Denotes the number of batches per epoch'
-        return self.df.shape[0]
+        return self.len
 
     def __getitem__(self, index):
-        # Randomly pick one of the images
-        with rasterio.open(self.df.iloc[index]['filename']) as src:
-            image = src.read().astype(np.float32) / self.rescale_value
+        # generate sample
+        image, label, gold = self.loadSample(index)
+
+        # image, label and gold label
         image = torch.from_numpy(image).float()
-
-        with rasterio.open(self.df.iloc[index]['osm_label']) as src:
-            label = src.read()
         label = torch.from_numpy(label).float()
-
-        with rasterio.open(self.df.iloc[index]['roof_label']) as src:
-            gold = src.read()
         gold = torch.from_numpy(gold).float()
 
-        # random crop
-        if self.set_name == 'train' and self.patch_size < 512:
-            cx = np.random.randint(0, image.shape[1] - self.patch_size)
-            cy = np.random.randint(0, image.shape[2] - self.patch_size)
-            image = image[:, cy:cy + self.patch_size, cx:cx + self.patch_size]
-            label = label[:, cy:cy + self.patch_size, cx:cx + self.patch_size]
-            gold = gold[:, cy:cy + self.patch_size, cx:cx + self.patch_size]
+        # # random crop
+        # if self.set_name == 'train' and self.patch_size < 512:
+        #     cx = np.random.randint(0, image.shape[1] - self.patch_size)
+        #     cy = np.random.randint(0, image.shape[2] - self.patch_size)
+        #     image = image[:, cy:cy + self.patch_size, cx:cx + self.patch_size]
+        #     label = label[:, cy:cy + self.patch_size, cx:cx + self.patch_size]
+        #     gold = gold[:, cy:cy + self.patch_size, cx:cx + self.patch_size]
 
-        return image, gold, label
-
-    def create_aug_data(self, y, affine, device):
-        B, C, H, W = y.shape
-
-        # affine matrix to (B, 3, 3)
-        last_row = torch.tensor([0, 0, 1], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine = torch.cat((affine, last_row), dim=1)
-
-        # horizontal flipping
-        hflip_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.hflip_chance)
-        y = y * (1 - hflip_coin) + hflip(y) * hflip_coin
-        hflip_coin = hflip_coin.squeeze(1)
-        Fv = torch.tensor([[-1, 0, 0], [0, 1, 0], [0, 0, 1]], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine_new = Fv @ affine @ Fv
-        affine = affine * (1 - hflip_coin) + affine_new * hflip_coin
-
-        # vertical flipping
-        vflip_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.vflip_chance)
-        y = y * (1 - vflip_coin) + vflip(y) * vflip_coin
-        vflip_coin = vflip_coin.squeeze(1)
-        Fv = torch.tensor([[1, 0, 0], [0, -1, 0], [0, 0, 1]], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine_new = Fv @ affine @ Fv
-        affine = affine * (1 - vflip_coin) + affine_new * vflip_coin
-
-        # rotation 90
-        rot90_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
-        aug = K.RandomRotation90(times=(1, 1), p=1, resample='nearest', keepdim=True)
-        y = y * (1 - rot90_coin) + aug(y) * rot90_coin
-        rot90_coin = rot90_coin.squeeze(1)
-        Fv = torch.tensor([[0, -1, 0], [1, 0, 0], [0, 0, 1]], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine_new = Fv.transpose(1, 2) @ affine @ Fv
-        affine = affine * (1 - rot90_coin) + affine_new * rot90_coin
-
-        # rotation 180
-        rot180_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
-        aug = K.RandomRotation90(times=(2, 2), p=1, resample='nearest', keepdim=True)
-        y = y * (1 - rot180_coin) + aug(y) * rot180_coin
-        rot180_coin = rot180_coin.squeeze(1)
-        Fv = torch.tensor([[-1, 0, 0], [0, -1, 0], [0, 0, 1]], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine_new = Fv.transpose(1, 2) @ affine @ Fv
-        affine = affine * (1 - rot180_coin) + affine_new * rot180_coin
-
-        # rotation 270
-        rot270_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
-        aug = K.RandomRotation90(times=(3, 3), p=1, resample='nearest', keepdim=True)
-        y = y * (1 - rot270_coin) + aug(y) * rot270_coin
-        rot270_coin = rot270_coin.squeeze(1)
-        Fv = torch.tensor([[0, 1, 0], [-1, 0, 0], [0, 0, 1]], device=device).float().unsqueeze(0).repeat(B, 1, 1)
-        affine_new = Fv.transpose(1, 2) @ affine @ Fv
-        affine = affine * (1 - rot270_coin) + affine_new * rot270_coin
-
-        # additive noise (uniform and normal/gaussian distribution noise)
-        noise_coin = torch.rand((B, 1, 1, 1), device=device)
-        noise_coin_add = (noise_coin < self.pixel_noise_chance / 2)
-        noise_coin_rem = ((noise_coin < self.pixel_noise_chance) & ~noise_coin_add).float()
-        noise_coin_add = noise_coin_add.float()
-
-        y[:, [0]] += ((torch.rand_like(y[:, [0]]) < 0.02) * noise_coin_add)
-        y[:, [0]] -= ((torch.rand_like(y[:, [0]]) < 0.02) * noise_coin_rem)
-        # clip to 0-1 range
-        y[:, [0]] = torch.clamp(y[:, [0]], 0, 1)
-
-        return y, affine[:, :2, :]
+        return image, gold.unsqueeze(0), label.unsqueeze(0)
 
 
     def aug_for_unet(self, X, y, z, device):

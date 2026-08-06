@@ -2,12 +2,11 @@ import os
 import torch
 import wandb
 import random
-random.seed(42)
-
-from datetime import datetime
 from tqdm import tqdm
+from datetime import datetime
 from torchmetrics import JaccardIndex
 from torch.utils.data import DataLoader
+from huggingface_hub import snapshot_download
 from segmentation_models_pytorch.losses import JaccardLoss
 from segmentation_models_pytorch.losses.constants import BINARY_MODE
 
@@ -21,6 +20,9 @@ from pipelines.utils.process_tensor import split_3_image
 from .loss_functions import loss_for_seg
 
 
+random.seed(42)
+
+
 class AlignTraining:
     def __init__(self, **kwargs):
 
@@ -31,8 +33,6 @@ class AlignTraining:
         self.patch_size = kwargs.get('patch_size', None)
         self.data_dir = kwargs.get('data_dir', None)
         self.batch_size = kwargs.get('batch_size', 2)
-        self.val_batch_size = max(16, int(self.batch_size/((512/self.patch_size)**2)))
-        print('Validation batch size', self.val_batch_size)
         self.max_shift = kwargs.get('max_shift', 100)  # this is for reg_loss
         self.checkpoints_dir = kwargs.get('checkpoints_dir', './checkpoints')
         self.checkpoints_org = self.checkpoints_dir
@@ -44,26 +44,21 @@ class AlignTraining:
         self.use_snet_aug = kwargs.get('use_snet_aug', False)
 
         # model parameters
-        self.model_name = kwargs.get('model_name', 'method4')
+        self.model_name = kwargs.get('model_name', 'method1')
         self.tnet_backbone = kwargs.get('tnet_backbone', 'vitsmall')
-        self.use_tnet_weights = kwargs.get('use_tnet_weights', False)
 
         # train parameters
-        self.learning_rate = kwargs.get('learning_rate', 0.0001)
+        self.learning_rate = kwargs.get('learning_rate', 0.00001)
         self.epochs = kwargs.get('epochs', 300)
-        self.lr_drop = kwargs.get('lr_drop', self.epochs)
         self.reg_loss_type = kwargs.get('reg_loss_type', 'mse')
         self.seg_loss_type = kwargs.get('seg_loss_type', 'cross_entropy')
         self.reg_loss_wt = kwargs.get('reg_loss_wt', 1)
         self.use_reg = kwargs.get('use_reg', False)
-        self.pre_weights = kwargs.get('pre_weights', None)
-        self.loss_setting = kwargs.get('loss_setting', None)
         self.num_workers = kwargs.get('num_workers', 0)
 
         # visualization parameters
         self.use_wb = kwargs.get('use_wb', False)
-        self.do_val = kwargs.get('do_val', True)
-        self.wb_project_name = kwargs.get('wb_project_name', 'Align')
+        self.wb_project_name = kwargs.get('wb_project_name', 'AnS')
         self.write_images = kwargs.get('write_images', False)
 
 
@@ -80,7 +75,13 @@ class AlignTraining:
 
     def train(self):
 
-        train_set = AlignDatagen(self.data_dir,
+        # download data from https://huggingface.co/datasets/kevinlikai/ReBO
+        rebo_data_dir = os.path.join(self.data_dir, 'rebo')
+        if not os.path.exists(rebo_data_dir):
+            os.mkdir(rebo_data_dir)
+        snapshot_download(repo_id='kevinlikai/ReBO', repo_type='dataset', local_dir=rebo_data_dir)
+
+        train_set = AlignDatagen(rebo_data_dir,
                                  sample_size=self.sample_size,
                                  set_name="train",
                                  patch_size=self.patch_size)
@@ -90,18 +91,18 @@ class AlignTraining:
                                        num_workers=self.num_workers,
                                        shuffle=True)
 
-        val_set = AlignDatagen(self.data_dir,
+        val_set = AlignDatagen(rebo_data_dir,
                                sample_size=self.sample_size,
                                set_name="val",
-                               patch_size=self.val_batch_size)
+                               patch_size=self.batch_size)
         data_loader_val = DataLoader(val_set,
-                                     self.val_batch_size,
+                                     self.batch_size,
                                      drop_last=False,
                                      num_workers=self.num_workers,
                                      shuffle=False)
 
         # get the UNet model and initialize weights
-        snet, tnet = load_model(self.model_name, self.tnet_backbone, self.device)
+        snet, tnet = load_model(self.model_name, self.tnet_backbone)
         model = torch.nn.Sequential(snet, tnet)
         model.to(self.device)
 
@@ -109,7 +110,6 @@ class AlignTraining:
 
         trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = torch.optim.AdamW(trainable_params, lr=self.learning_rate)
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.lr_drop, gamma=0.8)
         best_iou = 0
         best_iou_gold = 0
         start_epoch = 0
@@ -153,7 +153,6 @@ class AlignTraining:
                 true_mask = train_batch[1].to(self.device)
                 mask = train_batch[2].to(self.device)
                 weight_mask = torch.ones_like(mask)
-
                 # forward pass
                 if self.use_snet_aug:
                     image, mask, true_mask = train_set.aug_for_unet(image, mask, true_mask, self.device)
@@ -331,9 +330,6 @@ class AlignTraining:
                                 "epoch": epoch})
 
                 pbar_val.close()
-
-            # change lr according to the scheduler
-            lr_scheduler.step()
 
             # s = "/scratch/project_465002698/venky/projects/ImageAlign/runs/eccv"ave the latest weights
             latest_filename = 'latest.pth'
