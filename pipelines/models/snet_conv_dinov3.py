@@ -46,6 +46,19 @@ class Dinov3Seg(torch.nn.Module):
         )
         self.seg_layer = nn.Conv2d(self.skip_channels, 1, 1)
 
+    def decoder_state_dict(self):
+        return {
+            "first_block": self.first_block.state_dict(),
+            "decoder": self.decoder.state_dict(),
+            "last_decoder_block": self.last_decoder_block.state_dict(),
+            "seg_layer": self.seg_layer.state_dict(),
+        }
+
+    def load_decoder_state_dict(self, state_dict):
+        self.first_block.load_state_dict(state_dict["first_block"])
+        self.decoder.load_state_dict(state_dict["decoder"])
+        self.last_decoder_block.load_state_dict(state_dict["last_decoder_block"])
+        self.seg_layer.load_state_dict(state_dict["seg_layer"])
 
     def forward(self, x):
         # use dinov3 features

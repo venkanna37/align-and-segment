@@ -127,7 +127,7 @@ class AlignTraining:
             {"params": model[0].parameters(), "lr": self.snet_lr},
             {"params": model[1].parameters(), "lr": self.tnet_lr}
         ])
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.lr_drop, gamma=0.8)
+
         best_iou = 0
         best_iou_gold = 0
         start_epoch = 0
@@ -397,10 +397,30 @@ class AlignTraining:
                     "epoch": epoch})
             pbar_val.close()
 
-            # change lr according to the scheduler
-            lr_scheduler.step()
 
-            # save the latest weights
+            # Save best model with highest iou_learn score
+            best_path = os.path.join(self.checkpoints_dir, 'best.pth')
+            encoder_path = os.path.join(self.checkpoints_dir, 'encoder.pth')
+            decoder_path = os.path.join(self.checkpoints_dir, 'decoder.pth')
+            tnet_path = os.path.join(self.checkpoints_dir, 'tnet.pth')
+            if iou_learn > best_iou:
+                best_iou = iou_learn
+                print(f"Best model found at epoch {epoch} with with IOU_learn score: {round(best_iou, 5)}")
+                torch.save({
+                    'model': model.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'epoch': epoch,
+                    'metrics': dict_for_postfix,
+                    'params': self.kwargs
+                }, best_path)
+
+            # save each part separately (encoder, decoder and tnet)
+            torch.save(model[0].dinov3.state_dict(), encoder_path)
+            torch.save(model[0].decoder_state_dict(), decoder_path)
+            torch.save(model[1].state_dict(), tnet_path)
+
+            """
+            # save complete latest checkpoint
             latest_filename = 'latest.pth'
             checkpoint_latest_path = os.path.join(self.checkpoints_dir, latest_filename)
             torch.save({
@@ -410,20 +430,6 @@ class AlignTraining:
                 'metrics': dict_for_postfix,
                 'params': self.kwargs
             }, checkpoint_latest_path)
-
-            # save best model with score
-            if iou_learn > best_iou:
-                best_iou = iou_learn
-                print(f"Best model found at epoch {epoch} with with IOU_learn score: {round(best_iou, 5)}")
-                best_file = 'best.pth' if epoch < 200 else 'best300.pth'
-                checkpoint_best_path = os.path.join(self.checkpoints_dir, best_file)
-                torch.save({
-                    'model': model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'epoch': epoch,
-                    'metrics': dict_for_postfix,
-                    'params': self.kwargs
-                }, checkpoint_best_path)
 
             # save best model with based on golden label on validation set
             if iou_align > best_iou_gold:
@@ -436,4 +442,4 @@ class AlignTraining:
                     'epoch': epoch,
                     'metrics': dict_for_postfix,
                     'params': self.kwargs
-                }, checkpoint_best_path)
+                }, checkpoint_best_path) """
