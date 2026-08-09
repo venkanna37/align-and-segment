@@ -52,8 +52,7 @@ class AlignTraining:
         self.use_tnet_weights = kwargs.get('use_tnet_weights', False)
 
         # train parameters
-        self.snet_lr = kwargs.get('snet_lr', 0.00001)
-        self.tnet_lr = kwargs.get('tnet_lr', 0.00001)
+        self.learning_rate = kwargs.get('learning_rate', 0.00001)
         self.epochs = kwargs.get('epochs', 300)
         self.lr_drop = kwargs.get('lr_drop', self.epochs)
         self.seg_loss_type = kwargs.get('seg_loss_type', 'cross_entropy')
@@ -123,8 +122,8 @@ class AlignTraining:
         # trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         # optimizer = torch.optim.AdamW(trainable_params, lr=self.learning_rate)
         optimizer = torch.optim.AdamW([
-            {"params": model[0].parameters(), "lr": self.snet_lr},
-            {"params": model[1].parameters(), "lr": self.tnet_lr}
+            {"params": model[0].parameters(), "lr": self.learning_rate},
+            {"params": model[1].parameters(), "lr": self.learning_rate}
         ])
 
         best_iou = 0

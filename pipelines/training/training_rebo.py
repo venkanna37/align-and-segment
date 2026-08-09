@@ -111,7 +111,6 @@ class AlignTraining:
         trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = torch.optim.AdamW(trainable_params, lr=self.learning_rate)
         best_iou = 0
-        best_iou_gold = 0
         start_epoch = 0
 
         n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -122,12 +121,15 @@ class AlignTraining:
         iou_creterion = JaccardLoss(mode=BINARY_MODE, from_logits=False)
 
         if self.use_wb:
-            if self.keyword != "test":  # to avoid multiple W&B projects for test runs
+            if self.keyword != "test":
                 wandb_project = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_{self.keyword}"
             else:
                 wandb_project = self.keyword
             print(f"Project name in weights and biases : {wandb_project}")
-            writer = wandb.init(project=self.wb_project_name, name=wandb_project, dir=self.log_dir, config=self.kwargs)
+            writer = wandb.init(project=self.wb_project_name,
+                                name=wandb_project,
+                                dir=self.log_dir,
+                                config=self.kwargs)
 
         iou_seg_m = JaccardIndex(task="binary").to(self.device)
         iou_learn_m = JaccardIndex(task="binary").to(self.device)

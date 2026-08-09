@@ -17,7 +17,7 @@ from pipelines.datagen.spacenet2 import AlignDatagen
 from pipelines.models.stn import spatial_transformer_network
 from pipelines.utils.process_batch import transform_mask_with_random_affine
 from pipelines.utils.matrices import inverse_affine_matrix
-from .loss_functions import loss_for_align, loss_for_seg
+from .loss_functions import loss_for_seg
 
 
 class AlignTraining:
@@ -39,8 +39,8 @@ class AlignTraining:
         self.sample_size = kwargs.get('sample_size', None)
         self.synth_method = kwargs.get('misalign_magnitude', 50)  # 1: Uniform
         self.aug_shift = kwargs.get('aug_shift', 10)
-        self.max_shift = kwargs.get('max_shift', 50)       # this is for reg_loss
-        self.use_snet_aug = kwargs.get('use_snet_aug', False)
+        self.max_shift = kwargs.get('max_shift', 100)       # this is for reg_loss
+        self.use_snet_aug = kwargs.get('use_snet_aug', True)
         self.noise_type = kwargs.get('noise_type', 'u')
         self.rescale_value = kwargs.get('rescale_value', 255)
 
@@ -49,22 +49,15 @@ class AlignTraining:
         self.tnet_backbone = kwargs.get('tnet_backbone', 'vitsmall')
 
         # train parameters
-        self.do_val = kwargs.get('do_val', False)
-        self.learning_rate = kwargs.get('learning_rate', 0.0001)
+        self.learning_rate = kwargs.get('learning_rate', 0.00001)
         self.epochs = kwargs.get('epochs', 300)
-        self.lr_drop = kwargs.get('lr_drop', self.epochs)
-        self.reg_loss_type = kwargs.get('reg_loss_type', 'mse')
         self.seg_loss_type = kwargs.get('seg_loss_type', 'cross_entropy')
-        self.reg_loss_wt = kwargs.get('reg_loss_wt', 1)
-        self.use_reg = kwargs.get('use_reg', False)
-        self.border_width = kwargs.get('border_width', 5)
-        self.kernel_size = int(self.border_width * 2 + 1)
+        self.reg_loss_wt = kwargs.get('reg_loss_wt', 100)
         self.num_workers = kwargs.get('num_workers', 4)
 
         # visualization parameters
         self.use_wb = kwargs.get('use_wb', False)
-        self.wb_project_name = kwargs.get('wb_project_name', 'Align')
-        self.write_images = kwargs.get('write_images', False)
+        self.wb_project_name = kwargs.get('wb_project_name', 'AnS')
 
 
         if torch.cuda.is_available():
@@ -124,12 +117,9 @@ class AlignTraining:
         # trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         # optimizer = torch.optim.AdamW(trainable_params, lr=self.learning_rate)
         optimizer = torch.optim.AdamW([
-            {"params": model[0].parameters(), "lr": self.snet_lr},
-            {"params": model[1].parameters(), "lr": self.tnet_lr}
+            {"params": model[0].parameters(), "lr": self.learning_rate},
+            {"params": model[1].parameters(), "lr": self.learning_rate}
         ])
-
-        best_iou = 0
-        start_epoch = 0
 
         n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print('Trainable params:', n_params)
@@ -240,12 +230,11 @@ class AlignTraining:
                 writer.log({"train/seg_loss": epoch_loss,
                             "train/iou_learn": iou_learn,
                             "train/iou_org": iou_org,
+                            "train/reg_loss": aff_loss_avg / len(data_loader_train),
+                            "train/iou_loss": iou_loss_avg / len(data_loader_train),
+                            "train/tot_loss": tot_loss_avg / len(data_loader_train),
                             "epoch": epoch})
-                if self.use_reg:
-                    writer.log({"train/reg_loss": aff_loss_avg/len(data_loader_train),
-                                "train/iou_loss": iou_loss_avg/len(data_loader_train),
-                                "train/tot_loss": tot_loss_avg / len(data_loader_train),
-                                "epoch": epoch})
+
 
             # Validation
             iou_learn_m.reset()
@@ -297,7 +286,7 @@ class AlignTraining:
                     dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 
                     # get val metrics
-                    pred_mask, weight_mask = (pred_mask > 0).to(torch.uint8), weight_mask.to(torch.uint8)
+                    pred_mask, weight_mask = (pred_mask > 0).to(torch.uint8), (weight_mask > 0).to(torch.uint8)
                     aligned_label = aligned_label.to(torch.uint8)
                     iou_learn_m.update(aligned_label, pred_mask * weight_mask)
                     iou_org_m.update(pred_mask, mask)
@@ -314,17 +303,16 @@ class AlignTraining:
                     else:
                         pbar_val.set_postfix(dict_for_postfix, epoch=f'{epoch + 1}/{self.epochs}')
 
-                # validation summary
-                if self.use_wb:
-                    writer.log({"val/seg_loss": ce_loss_avg / len(data_loader_val),
-                                "val/iou_learn": iou_learn,
-                                "val/iou_org": iou_org,
-                                "epoch": epoch})
-                    if self.use_reg:
-                        writer.log({"val/reg_loss": aff_loss_avg / len(data_loader_val),
-                                    "val/iou_loss": iou_loss_avg / len(data_loader_val),
-                                    "val/total_loss": tot_loss_avg / len(data_loader_val),
-                                    "epoch": epoch})
+            # validation summary
+            if self.use_wb:
+                writer.log({"val/seg_loss": ce_loss_avg / len(data_loader_val),
+                            "val/iou_learn": iou_learn,
+                            "val/iou_org": iou_org,
+                            "val/reg_loss": aff_loss_avg / len(data_loader_val),
+                            "val/iou_loss": iou_loss_avg / len(data_loader_val),
+                            "val/total_loss": tot_loss_avg / len(data_loader_val),
+                            "epoch": epoch})
+
             pbar_val.reset()
 
             # save best model with score
