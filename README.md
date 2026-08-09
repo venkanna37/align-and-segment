@@ -9,61 +9,65 @@ This paper proposed a method for aligning and segmenting buildings from misalign
 without using any **golden labels**. The outline of this repository is given as follows.
 
 * [**Requirements**](#requirements)
-* [**Datasets**](#datasets)
+* [**Datasets and Weights**](#datasets-and-weights)
 * [**Train**](#train)
 * [**Test**](#test)
 * [**Align and segment**](#align-and-segment)
 * [**Citing**](#citing)
 
 ## Requirements
+By installing packages in `requirements.txt`, trainined weights and results on test can be reproduced.
 
-[//]: # (To run our code, all packages listed in `requirements.txt` must be installed.)
-All experiments in the paper used a DINOv3 encoder in the segmentation network (SNet).
-To reproduce the results or use the same encoder,
-the [dinov3 GitHub repository](https://github.com/facebookresearch/dinov3) must
-also be cloned in same directory where this code placed.
-In addition, the pretrained ConvNeXt-Tiny model trained on web images should be
-downloaded and placed inside the cloned dinov3 repository folder.
-AnS can run without downloading the dinov3 repository and the pretrained model,
-but it takes more time because training must be done from scratch.
-All experiments without using DINOv3 can be done by installing packages from  `requirements.txt`,
-for example in conda evironment.
 ```
 conda create -n "ans" python=3.11.0
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
 pip install -r requirements.txt
 ```
 
-To use, DINOv3, clone the repository outside `align-and-segment` folder.
-```
-cd ..
-git clone https://github.com/facebookresearch/dinov3.git
-```
-Make sure the ConvNeXt-Tiny pretrained model placed inside dinov3 folde.
-Follow the guidelines from dinov3 repository to download the pretrained model.
-The filename looks something like this: dinov3_convnext_tiny_pretrain_lvd1689m-********.pth
+## Datasets and Weights
+All the derived datasets and check points uploaded to Hugging Face. They are adutomatically downloaded when training and evaluation.
+They can also separately download from
+[Datasets](https://huggingface.co/datasets/venkanna37/align-and-segment) 
+and [Models](https://huggingface.co/venkanna37/align-and-segment).
+To avoid redistributing DINOv3 weights and code, [timm](https://timm.fast.ai/)
+library used. It automatically download the weights while training and testing.
+The weights of decoder of SNet and TNet are shared to reproduce the results.
 
-https://huggingface.co/facebook/dinov3-convnext-tiny-pretrain-lvd1689m
+Follow the below folder structure for custom datasets.
+`train.py` and `test.py` scripts automatically download and arrange both weights and datasets in same structure.
 
-## Datasets
+### Folder structure
+```
+datasets                # All datasets folder
+└───lasvegas            # Las Vegas Data
+    └───train           # Training set
+    │   └───images      # Input images
+    │   └───labels      # Input labels
+    └───val             # Validation set
+    │   └───...(same as train)
+    └───test            # Test set
+        └───...(same as train)
+
+runs 
+└───lasvegas_u          # Checkpoints on Las Vegas data with random noise
+        └───decoder.pt  # Decoder weights
+        └───tnet.pt     # TNet weights
+└───lasvegas_b          # Checkpoints on Las Vegas data with systematic noise
+        └───...(same as lasvegas_u)
+ ```
 
 ## Train
-To train the model on the sample data provided in the repository, run:
-```python train.py --keywod test_run --datadire sample_data/vegas```
-Change the ```--datadire``` argument to run on other datasets, for example three other cities.
+To train the model on the `sample_data`, run:
+```python train.py --keywod test_run --dataset_name sample_data```
+Change the ```--dataset_name``` to `'paris', 'khartoum', 'lasvegas', 'sanjuan', 'rebo'`
+to reproduce the training weights on respective dataset. Use `--noise_type` to train on randon (`u`) and systematic (`b`)
+noise type when training on `'paris', 'khartoum', 'lasvegas'` datasets. Similarly check `python train.py --help` for more details.
 
-To train the model on the qualitative evaluation dataset or custom dataset, choose dataset name run:
-```python train.py --keywod test_run --datadire sample_data/qualitative```
-
-To train model on ReBO dataset, first generated roof labels and osm labels as masks.
-Then train the model using the following command:
-```python train.py --keywod test_run --datadire sample_data/ReBO```
 
 ## Test
 To evaluate the model on the test set from the sample data, run:
-```python test.py --keywod test_run```
-Similar to training, additional dataset directories can be configured in the train.py file.
-## Align and segment
+```python test.py --keyword test_run```
+The folder names in `runs` folder or in [Hugging Face Model](https://huggingface.co/venkanna37/align-and-segment) are keywords.
 
 ## Citing
 If you find our work useful in your research, please consider citing our paper:
