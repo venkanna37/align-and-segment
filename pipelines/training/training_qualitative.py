@@ -1,8 +1,6 @@
 import os
 import torch
 import wandb
-import random
-random.seed(42)
 from datetime import datetime
 from tqdm import tqdm
 from torchmetrics import JaccardIndex
@@ -58,7 +56,6 @@ class AlignTraining:
         # visualization parameters
         self.use_wb = kwargs.get('use_wb', False)
         self.wb_project_name = kwargs.get('wb_project_name', 'AnS')
-
 
         if torch.cuda.is_available():
             self.device = torch.device('cuda')
@@ -131,7 +128,6 @@ class AlignTraining:
         print('SNet params:', n_params)
 
         iou_criterion = JaccardLoss(mode=BINARY_MODE, from_logits=False)
-
         if self.use_wb:
             if self.keyword != "test":  # to avoid multiple W&B projects for test runs
                 wandb_project = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_{self.keyword}"

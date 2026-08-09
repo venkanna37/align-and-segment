@@ -84,16 +84,17 @@ python train.py --help
 
 ---
 
-
 ## Test
 
-To evaluate the model on the test set from the sample data, run:
+To evaluate the model on the test set of Las Vegas with random noise:
 
 ```bash
-python test.py --keyword test_run
+python test.py --keyword lasvegas_u --dataset_name lasvegas
 ```
 
 The folder names inside `runs/`, or on the [Hugging Face Model page](https://huggingface.co/venkanna37/align-and-segment), correspond to the `--keyword` values used during training.
+
+Change `--dataset_name` to `paris`, `khartoum`, `lasvegas`, `sanjuan`, or `rebo` to reproduce the results on respective dataset.
 
 ---
 

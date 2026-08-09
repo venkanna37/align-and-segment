@@ -34,9 +34,9 @@ class AlignDatagen:
         self.data_dir = data_dir
         self.set_name = set_name
         self.rescale_value = rescale_value
-        if self.dataset_name == 'real':
+        if self.dataset_name == 'sanjuan':
             self.noise_type = 'r'
-            file_dir = os.path.join(self.data_dir, 'data.geojson')  #fixme
+            file_dir = os.path.join(self.data_dir, self.dataset_name, 'data.geojson')
             self.df = gpd.read_file(file_dir)
         else:
             file_dir = os.path.join(self.data_dir, self.dataset_name, 'data.csv')
@@ -80,7 +80,7 @@ class AlignDatagen:
             theta = self.df.iloc[index][ro_att]/2.0
         elif self.noise_type == "b": #bias
             tx, ty, theta = self.synth_method, 0, 0
-        elif self.noise_type == "r":  # real
+        elif self.noise_type == "r":
             pass
         else:
             raise ValueError(f"Unknown noise type: {self.noise_type}")
