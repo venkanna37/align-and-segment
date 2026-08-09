@@ -35,21 +35,16 @@ class AlignTraining:
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
         self.sample_size = kwargs.get('sample_size', None)
-        self.city = kwargs.get('city', None)
-        self.hold_city = kwargs.get('hold_city', None)
-        self.single_index = kwargs.get('single_index', None)
-        self.synth_method = kwargs.get('synth_method', 1)  # 1: Uniform
-        self.aug_shift = kwargs.get('aug_shift', None)
+        self.synth_method = kwargs.get('misalign_magnitude', 50)  # 1: Uniform
+        self.aug_shift = kwargs.get('aug_shift', 10)
         self.max_shift = kwargs.get('max_shift', 50)       # this is for reg_loss
-        self.do_augh = kwargs.get('do_augh', False)
         self.use_unet_aug = kwargs.get('use_unet_aug', False)
         self.noise_type = kwargs.get('noise_type', 'u')
         self.rescale_value = kwargs.get('rescale_value', 255)
 
         # model parameters
-        self.model_name = kwargs.get('model_name', 'ce')
+        self.model_name = kwargs.get('model_name', 'method1')
         self.tnet_backbone = kwargs.get('tnet_backbone', 'vitsmall')
-        self.use_tnet_weights = kwargs.get('use_tnet_weights', False)
 
         # train parameters
         self.do_val = kwargs.get('do_val', False)
