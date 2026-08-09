@@ -1,6 +1,7 @@
 """
 # Training AnS with synthetic, real and rebo dataset
 """
+
 import argparse
 from pipelines.training import training as training_synth, training_qualitative, training_rebo
 
@@ -11,7 +12,7 @@ if __name__ == '__main__':
 
     # data parameters
     parser.add_argument('--dataset_name', type=str,
-                        choices=['sample_data', 'paris', 'khartoum', 'lasvegas', 'real', 'rebo'],
+                        choices=['sample_data', 'paris', 'khartoum', 'lasvegas', 'sanjuan', 'rebo'],
                         default='sample_data', help='Type of dataset for training')
     parser.add_argument('--noise_type', type=str, choices=['u', 'b'], default='u',
                         help='Type of synthetic noise u: random noise, b: systematic noise')
@@ -29,7 +30,7 @@ if __name__ == '__main__':
     parser.add_argument('--patch_size', type=int, default=320,
                         help='Patch size for training')
     parser.add_argument('--use_snet_aug',
-                        action=argparse.BooleanOptionalAction, default=False,
+                        action=argparse.BooleanOptionalAction, default=True,
                         help='Augmentation for SNet')
 
     # data directory parameters
@@ -61,8 +62,6 @@ if __name__ == '__main__':
     parser.add_argument('--reg_loss_wt', type=float, default=100,
                         help='Weight for the affine loss (lamda in paper)')
     parser.add_argument('--num_workers', type=int, default=4)
-    parser.add_argument('--use_reg_loss', action=argparse.BooleanOptionalAction,
-                        default=False, help='Use regularization loss for TNet or not')
 
     # Visualisation parameters
     parser.add_argument('--use_wb', action=argparse.BooleanOptionalAction,
@@ -75,10 +74,11 @@ if __name__ == '__main__':
     # Initialize training object and train model
     if args.dataset_name in ['sample_data', 'paris', 'khartoum', 'lasvegas']:
         train = training_synth.AlignTraining(**params)
-    elif args.dataset_name == 'real':
-        params['noise_type'] = 'r'  #fixme makesure this is not required
+    elif args.dataset_name == 'sanjuan':
+        params['noise_type'] = 'r'
         train = training_qualitative.AlignTraining(**params)
     elif args.dataset_name == 'rebo':
+        params['patch_size'] = 512
         train = training_rebo.AlignTraining(**params)
     else:
         raise Exception("Unknown dataset type")

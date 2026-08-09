@@ -60,11 +60,10 @@ class AlignTraining:
         self.reg_loss_wt = kwargs.get('reg_loss_wt', 1)
         self.loss_setting = kwargs.get('loss_setting', None)
         self.num_workers = kwargs.get('num_workers', 4)
-        self.use_reg_loss = kwargs.get('use_reg_loss', False)
 
         # visualization parameters
         self.use_wb = kwargs.get('use_wb', False)
-        self.wb_project_name = kwargs.get('wb_project_name', 'Align')
+        self.wb_project_name = kwargs.get('wb_project_name', 'AnS')
 
         if torch.cuda.is_available():
             self.device = torch.device('cuda')
@@ -83,7 +82,7 @@ class AlignTraining:
         # check if data directory exists, if not create a folder
         synth_data_dir = os.path.join(self.data_dir, self.dataset_name)
         if not os.path.exists(synth_data_dir):
-            os.mkdir(self.data_dir)
+            os.makedirs(synth_data_dir, exist_ok=True)
         snapshot_download(repo_id='venkanna37/align-and-segment', repo_type='dataset',
                               allow_patterns=[f'{self.dataset_name}/**'], local_dir=self.data_dir)
 
@@ -95,9 +94,10 @@ class AlignTraining:
                                  aug_shift=self.aug_shift,
                                  patch_size=self.patch_size,
                                  noise_type= self.noise_type)
+
         data_loader_train = DataLoader(train_set,
                                        self.batch_size,
-                                       drop_last=True,
+                                       drop_last=False,
                                        num_workers=self.num_workers,
                                        shuffle=True)
 
@@ -118,7 +118,6 @@ class AlignTraining:
         snet, tnet = load_model(self.model_name, self.tnet_backbone)
         model = torch.nn.Sequential(snet, tnet)
         model.to(self.device)
-
         torch.nn.init.zeros_(tnet.fc.weight)
 
         # trainable_params = filter(lambda p: p.requires_grad, model.parameters())
@@ -129,7 +128,6 @@ class AlignTraining:
         ])
 
         best_iou = 0
-        best_iou_gold = 0
         start_epoch = 0
 
         n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -144,9 +142,6 @@ class AlignTraining:
         iou_criterion = JaccardLoss(mode=BINARY_MODE, from_logits=False)
 
         # model, training and data details, can be modified here or using command line arguments
-        params = {
-            'wb_project_name': 'AnS'
-        }
         if self.use_wb:
             if self.keyword != "test":  # to avoid multiple W&B projects for test runs
                 wandb_project = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}_{self.keyword}"
@@ -215,7 +210,7 @@ class AlignTraining:
                 iou_loss_avg += iou_loss.item()
                 dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
-                loss = aff_loss + iou_loss
+                loss = aff_loss + iou_loss + seg_loss
                 tot_loss_avg += loss.item()
                 dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 
@@ -334,7 +329,7 @@ class AlignTraining:
                     iou_loss_avg += iou_loss.item()
                     dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
-                    loss = aff_loss + iou_loss
+                    loss = aff_loss + iou_loss + seg_loss
                     tot_loss_avg += loss.item()
                     dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 
@@ -398,13 +393,16 @@ class AlignTraining:
             pbar_val.close()
 
 
-            # Save best model with highest iou_learn score
-            best_path = os.path.join(self.checkpoints_dir, 'best.pth')
-            encoder_path = os.path.join(self.checkpoints_dir, 'encoder.pth')
-            decoder_path = os.path.join(self.checkpoints_dir, 'decoder.pth')
-            tnet_path = os.path.join(self.checkpoints_dir, 'tnet.pth')
+
             if iou_learn > best_iou:
                 best_iou = iou_learn
+
+                # Save best model with highest iou_learn score
+                best_path = os.path.join(self.checkpoints_dir, 'best.pth')
+                encoder_path = os.path.join(self.checkpoints_dir, 'encoder.pth')
+                decoder_path = os.path.join(self.checkpoints_dir, 'decoder.pth')
+                tnet_path = os.path.join(self.checkpoints_dir, 'tnet.pth')
+
                 print(f"Best model found at epoch {epoch} with with IOU_learn score: {round(best_iou, 5)}")
                 torch.save({
                     'model': model.state_dict(),
@@ -414,10 +412,10 @@ class AlignTraining:
                     'params': self.kwargs
                 }, best_path)
 
-            # save each part separately (encoder, decoder and tnet)
-            torch.save(model[0].dinov3.state_dict(), encoder_path)
-            torch.save(model[0].decoder_state_dict(), decoder_path)
-            torch.save(model[1].state_dict(), tnet_path)
+                # save each part separately (encoder, decoder and tnet)
+                torch.save(model[0].dinov3.state_dict(), encoder_path)
+                torch.save(model[0].decoder_state_dict(), decoder_path)
+                torch.save(model[1].state_dict(), tnet_path)
 
             """
             # save complete latest checkpoint

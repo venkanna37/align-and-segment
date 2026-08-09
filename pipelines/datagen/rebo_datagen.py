@@ -37,10 +37,9 @@ class AlignDatagen:
         self.image_ids = self.coco.getImgIds()
 
         if set_name == 'train' or set_name == 'val':
-            all_ids = set(self.image_ids)
-            counts = int(0.8 * len(all_ids))
-            train_ids = set(random.sample(all_ids, counts))
-            val_ids = list(all_ids - train_ids)
+            counts = int(0.8 * len(self.image_ids))
+            train_ids = set(random.sample(self.image_ids, counts))
+            val_ids = list(set(self.image_ids) - train_ids)
             train_ids = list(train_ids)
             self.image_ids = train_ids if set_name == 'train' else val_ids
 

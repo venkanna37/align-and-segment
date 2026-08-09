@@ -235,127 +235,127 @@ class AlignTraining:
                             "epoch": epoch})
 
             # Validation
-            if self.do_val:
-                iou_learn_m.reset()
-                iou_seg_m.reset()
-                iou_align_m.reset()
-                iou_org_m.reset()
+            iou_learn_m.reset()
+            iou_seg_m.reset()
+            iou_align_m.reset()
+            iou_org_m.reset()
 
-                model.eval()
-                dict_for_postfix = {}
-                tot_loss_avg, ce_loss_avg, aff_loss_avg, iou_loss_avg = 0, 0, 0, 0
+            model.eval()
+            dict_for_postfix = {}
+            tot_loss_avg, ce_loss_avg, aff_loss_avg, iou_loss_avg = 0, 0, 0, 0
 
-                pbar_val = tqdm(enumerate(data_loader_val), total=len(data_loader_val), desc="val")
-                for i, val_batch in pbar_val:
-                    # Load data
-                    image = val_batch[0].to(self.device)
-                    true_mask = val_batch[1].to(self.device)
-                    mask = val_batch[2].to(self.device)
+            pbar_val = tqdm(enumerate(data_loader_val), total=len(data_loader_val), desc="val")
+            for i, val_batch in pbar_val:
+                # Load data
+                image = val_batch[0].to(self.device)
+                true_mask = val_batch[1].to(self.device)
+                mask = val_batch[2].to(self.device)
 
-                    if self.patch_size != 512:
-                        image, mask, true_mask = split_3_image(image, mask, true_mask,
-                                                               patch_size=self.patch_size)
-                    weight_mask = torch.ones_like(mask)
+                if self.patch_size != 512:
+                    image, mask, true_mask = split_3_image(image, mask, true_mask,
+                                                           patch_size=self.patch_size)
+                weight_mask = torch.ones_like(mask)
 
-                    # forward pass
-                    with torch.no_grad():
-                        pred_mask = model[0](image)
-                        input_tnet = torch.cat((mask, (pred_mask > 0).float()), dim=1)
-                        params, _ = model[1](input_tnet)
-                        aligned_label = spatial_transformer_network(mask, params)
-                        weight_mask = (spatial_transformer_network(weight_mask, params.detach()) > 0).float()
+                # forward pass
+                with torch.no_grad():
+                    pred_mask = model[0](image)
+                    input_tnet = torch.cat((mask, (pred_mask > 0).float()), dim=1)
+                    params, _ = model[1](input_tnet)
+                    aligned_label = spatial_transformer_network(mask, params)
+                    weight_mask = (spatial_transformer_network(weight_mask, params.detach()) > 0).float()
 
-                        loss = loss_for_seg(pred_mask, aligned_label, weight_mask, loss_type=self.seg_loss_type)
-                        ce_loss_avg += loss.item()
-                        dict_for_postfix["seg_ls"] = f'{ce_loss_avg / (i + 1):.4f}'
+                    loss = loss_for_seg(pred_mask, aligned_label, weight_mask, loss_type=self.seg_loss_type)
+                    ce_loss_avg += loss.item()
+                    dict_for_postfix["seg_ls"] = f'{ce_loss_avg / (i + 1):.4f}'
 
-                        aug_mask1, g1 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
-                        g1_inv = inverse_affine_matrix(g1)
-                        input_tnet1 = torch.cat((mask, aug_mask1), dim=1)
-                        t1, _ = model[1](input_tnet1)
-                        loss1_squares = (g1_inv - t1) ** 2
-                        aff_loss = loss1_squares.mean() * self.reg_loss_wt
-                        aff_loss_avg += aff_loss.item()
-                        dict_for_postfix["reg_ls"] = f'{aff_loss_avg / (i + 1):.4f}'
+                    aug_mask1, g1 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
+                    g1_inv = inverse_affine_matrix(g1)
+                    input_tnet1 = torch.cat((mask, aug_mask1), dim=1)
+                    t1, _ = model[1](input_tnet1)
+                    loss1_squares = (g1_inv - t1) ** 2
+                    aff_loss = loss1_squares.mean() * self.reg_loss_wt
+                    aff_loss_avg += aff_loss.item()
+                    dict_for_postfix["reg_ls"] = f'{aff_loss_avg / (i + 1):.4f}'
 
-                        reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
-                        reg_weight_mask = (
-                                    spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
-                        reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
-                        iou_loss = iou_creterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
-                        iou_loss_avg += iou_loss.item()
-                        dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
+                    reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
+                    reg_weight_mask = (
+                                spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
+                    reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
+                    iou_loss = iou_creterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
+                    iou_loss_avg += iou_loss.item()
+                    dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
-                        loss = aff_loss + iou_loss
-                        tot_loss_avg += loss.item()
-                        dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
+                    loss = aff_loss + iou_loss
+                    tot_loss_avg += loss.item()
+                    dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 
-                        # get val metrics
-                        pred_mask, weight_mask = (pred_mask > 0).to(torch.uint8), (weight_mask > 0).to(torch.uint8)
-                        aligned_label = aligned_label.to(torch.uint8)
-                        iou_seg_m.update(pred_mask, true_mask)
-                        iou_learn_m.update(aligned_label, pred_mask * weight_mask)
-                        iou_align_m.update(aligned_label, true_mask * weight_mask)
-                        iou_org_m.update(pred_mask, mask)
+                    # get val metrics
+                    pred_mask, weight_mask = (pred_mask > 0).to(torch.uint8), (weight_mask > 0).to(torch.uint8)
+                    aligned_label = aligned_label.to(torch.uint8)
+                    iou_seg_m.update(pred_mask, true_mask)
+                    iou_learn_m.update(aligned_label, pred_mask * weight_mask)
+                    iou_align_m.update(aligned_label, true_mask * weight_mask)
+                    iou_org_m.update(pred_mask, mask)
 
-                        iou_seg = iou_seg_m.compute().item()
-                        iou_learn = iou_learn_m.compute().item()
-                        iou_align = iou_align_m.compute().item()
-                        iou_org = iou_org_m.compute().item()
-                        dict_for_postfix["iou_seg"] = f'{iou_seg:.4f}'
-                        dict_for_postfix["iou_lea"] = f'{iou_learn:.4f}'
-                        dict_for_postfix["iou_evl"] = f'{iou_align:.4f}'
-                        dict_for_postfix["iou_org"] = f'{iou_org:.4f}'
+                    iou_seg = iou_seg_m.compute().item()
+                    iou_learn = iou_learn_m.compute().item()
+                    iou_align = iou_align_m.compute().item()
+                    iou_org = iou_org_m.compute().item()
+                    dict_for_postfix["iou_seg"] = f'{iou_seg:.4f}'
+                    dict_for_postfix["iou_lea"] = f'{iou_learn:.4f}'
+                    dict_for_postfix["iou_evl"] = f'{iou_align:.4f}'
+                    dict_for_postfix["iou_org"] = f'{iou_org:.4f}'
 
-                        if torch.cuda.is_available():
-                            peak_memory = torch.cuda.max_memory_allocated() / (1024 ** 2)
-                            dict_for_postfix["pk_mem"] = f'{peak_memory:.1f} MB'
-                            pbar_val.set_postfix(dict_for_postfix, epoch=f'{epoch + 1}/{self.epochs}')
-                        else:
-                            pbar_val.set_postfix(dict_for_postfix, epoch=f'{epoch + 1}/{self.epochs}')
+                    if torch.cuda.is_available():
+                        peak_memory = torch.cuda.max_memory_allocated() / (1024 ** 2)
+                        dict_for_postfix["pk_mem"] = f'{peak_memory:.1f} MB'
+                        pbar_val.set_postfix(dict_for_postfix, epoch=f'{epoch + 1}/{self.epochs}')
+                    else:
+                        pbar_val.set_postfix(dict_for_postfix, epoch=f'{epoch + 1}/{self.epochs}')
 
-                # validation summary
-                if self.use_wb:
-                    e_seg_loss = ce_loss_avg / len(data_loader_val)
-                    e_aff_loss = aff_loss_avg / len(data_loader_val)
-                    e_iou_loss = iou_loss_avg / len(data_loader_val)
+            # validation summary
+            if self.use_wb:
+                e_seg_loss = ce_loss_avg / len(data_loader_val)
+                e_aff_loss = aff_loss_avg / len(data_loader_val)
+                e_iou_loss = iou_loss_avg / len(data_loader_val)
 
-                    writer.log({"val/seg_loss": e_seg_loss,
-                                "val/aff_loss": e_aff_loss,
-                                "val/iou_loss": e_iou_loss,
-                                "val/iou_learn": iou_learn,
-                                "val/iou_seg": iou_seg,
-                                "val/iou_align": iou_align,
-                                "val/iou_org": iou_org,
-                                "epoch": epoch})
+                writer.log({"val/seg_loss": e_seg_loss,
+                            "val/aff_loss": e_aff_loss,
+                            "val/iou_loss": e_iou_loss,
+                            "val/iou_learn": iou_learn,
+                            "val/iou_seg": iou_seg,
+                            "val/iou_align": iou_align,
+                            "val/iou_org": iou_org,
+                            "epoch": epoch})
 
-                pbar_val.close()
-
-            # s = "/scratch/project_465002698/venky/projects/ImageAlign/runs/eccv"ave the latest weights
-            latest_filename = 'latest.pth'
-            checkpoint_latest_path = os.path.join(self.checkpoints_dir, latest_filename)
-            torch.save({
-                'model': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'epoch': epoch,
-                'metrics': dict_for_postfix,
-                'params': self.kwargs
-            }, checkpoint_latest_path)
+            pbar_val.close()
 
             # save best model with score
             if iou_learn > best_iou:
                 best_iou = iou_learn
+
+                # Save best model with highest iou_learn score
+                best_path = os.path.join(self.checkpoints_dir, 'best.pth')
+                encoder_path = os.path.join(self.checkpoints_dir, 'encoder.pth')
+                decoder_path = os.path.join(self.checkpoints_dir, 'decoder.pth')
+                tnet_path = os.path.join(self.checkpoints_dir, 'tnet.pth')
+
                 print(f"Best model found at epoch {epoch} with with IOU_learn score: {round(best_iou, 5)}")
-                best_file = 'best.pth' if epoch < 200 else 'best300.pth'
-                checkpoint_best_path = os.path.join(self.checkpoints_dir, best_file)
+
                 torch.save({
                     'model': model.state_dict(),
                     'optimizer': optimizer.state_dict(),
                     'epoch': epoch,
                     'metrics': dict_for_postfix,
                     'params': self.kwargs
-                }, checkpoint_best_path)
+                }, best_path)
 
+                # save each part separately (encoder, decoder and tnet)
+                torch.save(model[0].dinov3.state_dict(), encoder_path)
+                torch.save(model[0].decoder_state_dict(), decoder_path)
+                torch.save(model[1].state_dict(), tnet_path)
+
+            """
             # save best model with based on golden label on validation set
             if iou_align > best_iou_gold:
                 best_iou_gold = iou_align
@@ -368,3 +368,14 @@ class AlignTraining:
                     'metrics': dict_for_postfix,
                     'params': self.kwargs
                 }, checkpoint_best_path)
+
+            # s = "/scratch/project_465002698/venky/projects/ImageAlign/runs/eccv"ave the latest weights
+            latest_filename = 'latest.pth'
+            checkpoint_latest_path = os.path.join(self.checkpoints_dir, latest_filename)
+            torch.save({
+                'model': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'epoch': epoch,
+                'metrics': dict_for_postfix,
+                'params': self.kwargs
+            }, checkpoint_latest_path)  """

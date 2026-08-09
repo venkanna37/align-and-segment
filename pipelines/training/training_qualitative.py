@@ -7,6 +7,7 @@ from datetime import datetime
 from tqdm import tqdm
 from torchmetrics import JaccardIndex
 from torch.utils.data import DataLoader
+from huggingface_hub import snapshot_download
 from segmentation_models_pytorch.losses import JaccardLoss
 from segmentation_models_pytorch.losses.constants import BINARY_MODE
 
@@ -26,6 +27,7 @@ class AlignTraining:
         self.keyword = kwargs.get('keyword', 'test')
 
         # data parameters
+        self.dataset_name = kwargs.get('dataset_name', 'sanjuan')
         self.patch_size = kwargs.get('patch_size', None)
         self.data_dir = kwargs.get('data_dir', None)
         self.batch_size = kwargs.get('batch_size', 2)
@@ -38,7 +40,7 @@ class AlignTraining:
         self.synth_method = kwargs.get('misalign_magnitude', 50)  # 1: Uniform
         self.aug_shift = kwargs.get('aug_shift', 10)
         self.max_shift = kwargs.get('max_shift', 50)       # this is for reg_loss
-        self.use_unet_aug = kwargs.get('use_unet_aug', False)
+        self.use_snet_aug = kwargs.get('use_snet_aug', False)
         self.noise_type = kwargs.get('noise_type', 'u')
         self.rescale_value = kwargs.get('rescale_value', 255)
 
@@ -57,6 +59,7 @@ class AlignTraining:
         self.use_reg = kwargs.get('use_reg', False)
         self.border_width = kwargs.get('border_width', 5)
         self.kernel_size = int(self.border_width * 2 + 1)
+        self.num_workers = kwargs.get('num_workers', 4)
 
         # visualization parameters
         self.use_wb = kwargs.get('use_wb', False)
@@ -77,53 +80,67 @@ class AlignTraining:
 
     def train(self):
 
-        train_set = AlignDatagen(self.data_dir, sample_size=self.sample_size, set_name="train", city=self.city,
-                                 single_index=self.single_index, synth_method=self.synth_method,
-                                 aug_shift=self.aug_shift, patch_size=self.patch_size, hold_city=self.hold_city,
-                                 noise_type= self.noise_type, rescale_value=self.rescale_value)
-        data_loader_train = DataLoader(train_set, self.batch_size, drop_last=True, num_workers=4, shuffle=True)
+        # check if data directory exists, if not create a folder
+        synth_data_dir = os.path.join(self.data_dir, self.dataset_name)
+        if not os.path.exists(synth_data_dir):
+            os.makedirs(synth_data_dir, exist_ok=True)
+        snapshot_download(repo_id='venkanna37/align-and-segment', repo_type='dataset',
+                          allow_patterns=[f'{self.dataset_name}/**'], local_dir=self.data_dir)
 
-        val_set = AlignDatagen(self.data_dir, sample_size=self.sample_size, set_name="val", city=self.city,
-                                 single_index=self.single_index, synth_method=self.synth_method,
-                                 patch_size=self.patch_size, hold_city=self.hold_city, noise_type= self.noise_type,
-                               rescale_value=self.rescale_value)
-        data_loader_val = DataLoader(val_set, self.batch_size, drop_last=False, num_workers=4, shuffle=False)
+        train_set = AlignDatagen(self.data_dir,
+                                 sample_size=self.sample_size,
+                                 set_name='train',
+                                 dataset_name=self.dataset_name,
+                                 synth_method=self.synth_method,
+                                 aug_shift=self.aug_shift,
+                                 patch_size=self.patch_size,
+                                 noise_type=self.noise_type)
+
+        data_loader_train = DataLoader(train_set,
+                                       self.batch_size,
+                                       drop_last=False,
+                                       num_workers=self.num_workers,
+                                       shuffle=True)
+
+        val_set = AlignDatagen(self.data_dir,
+                               sample_size=self.sample_size,
+                               set_name='val',
+                               dataset_name=self.dataset_name,
+                               synth_method=self.synth_method,
+                               patch_size=self.patch_size,
+                               noise_type=self.noise_type)
+        data_loader_val = DataLoader(val_set,
+                                     self.batch_size,
+                                     drop_last=False,
+                                     num_workers=self.num_workers,
+                                     shuffle=False)
 
         # get the UNet model and initialize weights
-        snet, tnet = load_model(self.model_name, self.tnet_backbone, self.device)
-
-        # load weights to tnet
-        if self.use_tnet_weights:
-            if self.model_name == 'method1' or self.model_name == 'method2' or self.model_name == 'method3':
-                if self.tnet_backbone == 'resnet34':
-                    weights_path = "../../runs/challenge/ReS342/best.pth"
-                elif self.tnet_backbone == 'vitsmall':
-                    weights_path = "../../runs/challenge/ViTsmall/best.pth"
-                model_weights = torch.load(weights_path, map_location=self.device)
-                tnet.load_state_dict(model_weights['model'], strict=False)
-            elif self.model_name == 'Method2' or self.model_name == 'Method3' or self.model_name == 'Method4':
-                weights_path = "/home/mwv506/projects/ImageAlign/runs/challenge/ViT320_1k2/best.pth"
-                model_weights = torch.load(weights_path, map_location=self.device)
-                tnet.load_state_dict(model_weights['model'], strict=False)
-            print(f"Loaded TNet weights from {weights_path} for the backbone {self.tnet_backbone}")
-        else:
-            # if weights not initialized, the transformation metric should be identity
-            torch.nn.init.zeros_(tnet.fc.weight)
-
+        snet, tnet = load_model(self.model_name, self.tnet_backbone)
         model = torch.nn.Sequential(snet, tnet)
+        model.to(self.device)
+        torch.nn.init.zeros_(tnet.fc.weight)
+
+        # trainable_params = filter(lambda p: p.requires_grad, model.parameters())
+        # optimizer = torch.optim.AdamW(trainable_params, lr=self.learning_rate)
+        optimizer = torch.optim.AdamW([
+            {"params": model[0].parameters(), "lr": self.snet_lr},
+            {"params": model[1].parameters(), "lr": self.tnet_lr}
+        ])
+
+        best_iou = 0
+        start_epoch = 0
+
         n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print('Trainable params:', n_params)
         n_params = sum(p.numel() for p in model.parameters() if not p.requires_grad)
         print('Non-trainable params:', n_params)
+        n_params = sum(p.numel() for p in model[1].parameters())
+        print('TNet params:', n_params)
+        n_params = sum(p.numel() for p in model[0].parameters())
+        print('SNet params:', n_params)
 
-        model.to(self.device)
-        optimizer = torch.optim.AdamW([
-            {"params": model[0].parameters(), "lr": self.learning_rate},
-            {"params": model[1].parameters(), "lr": self.learning_rate}
-        ])
-
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, self.lr_drop, gamma=0.8)
-        iou_creterion = JaccardLoss(mode=BINARY_MODE, from_logits=False)
+        iou_criterion = JaccardLoss(mode=BINARY_MODE, from_logits=False)
 
         if self.use_wb:
             if self.keyword != "test":  # to avoid multiple W&B projects for test runs
@@ -145,7 +162,6 @@ class AlignTraining:
             model.train()
             dict_for_postfix = {}
             tot_loss_avg, ce_loss_avg, aff_loss_avg, iou_loss_avg = 0, 0, 0, 0
-            affin_params = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], device=self.device)
 
             pbar_train = tqdm(enumerate(data_loader_train), total=len(data_loader_train), desc="train")
             for i, train_batch in pbar_train:
@@ -155,7 +171,7 @@ class AlignTraining:
                 weight_mask = torch.ones_like(mask)
 
                 # forward pass
-                if self.use_unet_aug:
+                if self.use_snet_aug:
                     image, mask = train_set.baseline_aug(image, mask, self.device)
 
                 pred_mask = model[0](image)
@@ -165,35 +181,34 @@ class AlignTraining:
                 aligned_label = spatial_transformer_network(mask, params)
                 weight_mask = (spatial_transformer_network(weight_mask, params.detach()) > 0).float()
 
-                loss = loss_for_seg(pred_mask, aligned_label, weight_mask, loss_type=self.seg_loss_type)
-                ce_loss_avg += loss.item()
+                seg_loss = loss_for_seg(pred_mask, aligned_label, weight_mask, loss_type=self.seg_loss_type)
+                ce_loss_avg += seg_loss.item()
                 dict_for_postfix["seg_ls"] = f'{ce_loss_avg / (i + 1):.4f}'
 
 
-                if self.use_reg:
-                    aug_mask, aug_affine = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
-                    input_tnet2 = torch.cat((mask, aug_mask), dim=1)
-                    input_tnet2, aug_affine = train_set.create_aug_data(input_tnet2, aug_affine, self.device)
+                aug_mask1, g1 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
+                g1_inv = inverse_affine_matrix(g1)
+                input_tnet1 = torch.cat((mask, aug_mask1), dim=1)
 
-                    pred_affine, _ = model[1](input_tnet2)
-                    inv_aug_aff = inverse_affine_matrix(aug_affine)
-                    aff_loss = loss_for_align(pred_affine, inv_aug_aff, device=self.device, loss_type=self.reg_loss_type) * self.reg_loss_wt
-                    loss += aff_loss
+                t1, _ = model[1](input_tnet1)
+                loss1_squares = (g1_inv - t1) ** 2
+                aff_loss = loss1_squares.mean() * self.reg_loss_wt
 
-                    aff_loss_avg += aff_loss.item()
-                    dict_for_postfix["reg_ls"] = f'{aff_loss_avg / (i + 1):.4f}'
+                aff_loss_avg += aff_loss.item()
+                dict_for_postfix["reg_ls"] = f'{aff_loss_avg / (i + 1):.4f}'
 
-                    # iou loss
-                    reg_weight_mask = torch.ones_like(aug_mask, device=self.device)
-                    reg_weight_mask = (spatial_transformer_network(reg_weight_mask, pred_affine.detach()) > 0).float()
-                    reg_aligned_mask = spatial_transformer_network(input_tnet2[:, [1]], pred_affine)
-                    iou_loss = iou_creterion(reg_aligned_mask, input_tnet2[:, [0]] * reg_weight_mask)
-                    iou_loss_avg += iou_loss.item()
-                    dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
-                    loss += iou_loss
+                # second loss IoU part
+                reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
+                reg_weight_mask = (
+                        spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
+                reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
+                iou_loss = iou_criterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
+                iou_loss_avg += iou_loss.item()
+                dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
-                    tot_loss_avg += loss.item()
-                    dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
+                loss = aff_loss + iou_loss + seg_loss
+                tot_loss_avg += loss.item()
+                dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 
                 # backpropagation
                 optimizer.zero_grad()
@@ -201,7 +216,7 @@ class AlignTraining:
                 optimizer.step()
 
                 # get metrics
-                pred_mask, binary_weight_mask = (pred_mask > 0).to(torch.uint8), weight_mask.to(torch.uint8)
+                pred_mask, binary_weight_mask = (pred_mask > 0).to(torch.uint8), (weight_mask > 0).to(torch.uint8)
                 aligned_label = aligned_label.to(torch.uint8)
                 iou_learn_m.update(aligned_label, pred_mask * binary_weight_mask)
                 iou_org_m.update(pred_mask, mask)
@@ -233,94 +248,110 @@ class AlignTraining:
                                 "epoch": epoch})
 
             # Validation
-            if self.do_val:
-                iou_learn_m.reset()
-                iou_org_m.reset()
+            iou_learn_m.reset()
+            iou_org_m.reset()
 
-                model.eval()
-                dict_for_postfix = {}
-                tot_loss_avg, ce_loss_avg, aff_loss_avg, iou_loss_avg = 0, 0, 0, 0
-                affin_params = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], device=self.device)
+            model.eval()
+            dict_for_postfix = {}
+            tot_loss_avg, ce_loss_avg, aff_loss_avg, iou_loss_avg = 0, 0, 0, 0
 
-                pbar_val = tqdm(enumerate(data_loader_val), total=len(data_loader_val), desc="val")
-                for i, val_batch in pbar_val:
-                    # Load data
-                    image = val_batch[0].to(self.device)
-                    mask = val_batch[1].to(self.device)
-                    weight_mask = torch.ones_like(mask)
+            pbar_val = tqdm(enumerate(data_loader_val), total=len(data_loader_val), desc="val")
+            for i, val_batch in pbar_val:
+                # Load data
+                image = val_batch[0].to(self.device)
+                mask = val_batch[1].to(self.device)
+                weight_mask = torch.ones_like(mask)
 
-                    # forward pass
-                    with torch.no_grad():
-                        pred_mask = model[0](image)
-                        input_tnet = torch.cat((mask, (pred_mask > 0).float()), dim=1)
-                        params, _ = model[1](input_tnet)
-                        aligned_label = spatial_transformer_network(mask, params)
-                        weight_mask = spatial_transformer_network(weight_mask, params.detach())
-                        loss = loss_for_seg(pred_mask, aligned_label, weight_mask, loss_type=self.seg_loss_type)
-                        ce_loss_avg += loss.item()
-                        dict_for_postfix["seg_ls"] = f'{ce_loss_avg / (i + 1):.4f}'
+                # forward pass
+                with torch.no_grad():
+                    pred_mask = model[0](image)
+                    input_tnet = torch.cat((mask, (pred_mask > 0).float()), dim=1)
+                    params, _ = model[1](input_tnet)
+                    aligned_label = spatial_transformer_network(mask, params)
+                    weight_mask = spatial_transformer_network(weight_mask, params.detach())
+                    seg_loss = loss_for_seg(pred_mask, aligned_label, weight_mask, loss_type=self.seg_loss_type)
+                    ce_loss_avg += seg_loss.item()
+                    dict_for_postfix["seg_ls"] = f'{ce_loss_avg / (i + 1):.4f}'
 
+                    # second loss MSE part
+                    aug_mask1, g1 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
+                    g1_inv = inverse_affine_matrix(g1)
+                    input_tnet1 = torch.cat((mask, aug_mask1), dim=1)
+                    t1, _ = model[1](input_tnet1)
+                    loss1_squares = (g1_inv - t1) ** 2
+                    aff_loss = loss1_squares.mean() * self.reg_loss_wt
+                    aff_loss_avg += aff_loss.item()
+                    dict_for_postfix["reg_ls"] = f'{aff_loss_avg / (i + 1):.4f}'
 
-                        if self.use_reg:
-                            aug_mask, aug_affine = transform_mask_with_random_affine(mask, self.device,
-                                                                                     max_shift=self.max_shift)
-                            input_tnet2 = torch.cat((mask, aug_mask), dim=1)
-                            input_tnet2, aug_affine = train_set.create_aug_data(input_tnet2, aug_affine, self.device)
-                            pred_affine, _ = model[1](input_tnet2)
-                            inv_aug_aff = inverse_affine_matrix(aug_affine)
-                            aff_loss = loss_for_align(pred_affine, inv_aug_aff, device=self.device,
-                                                      loss_type=self.reg_loss_type)
-                            aff_loss_avg += aff_loss.item()
-                            dict_for_postfix["reg_ls"] = f'{aff_loss_avg / (i + 1):.4f}'
-                            loss += aff_loss
+                    # second loss IoU part
+                    reg_weight_mask = torch.ones_like(aug_mask1, device=self.device)
+                    reg_weight_mask = (
+                            spatial_transformer_network(reg_weight_mask, t1.detach()) > 0).float()
+                    reg_aligned_mask = spatial_transformer_network(input_tnet1[:, [1]], t1)
+                    iou_loss = iou_criterion(reg_aligned_mask, input_tnet1[:, [0]] * reg_weight_mask)
+                    iou_loss_avg += iou_loss.item()
+                    dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
-                            # iou loss
-                            reg_weight_mask = torch.ones_like(aug_mask, device=self.device)
-                            reg_weight_mask = (
-                                        spatial_transformer_network(reg_weight_mask, pred_affine.detach()) > 0).float()
-                            reg_aligned_mask = spatial_transformer_network(input_tnet2[:, [1]], pred_affine)
-                            iou_loss = iou_creterion(reg_aligned_mask, input_tnet2[:, [0]] * reg_weight_mask)
-                            iou_loss_avg += iou_loss.item()
-                            dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
-                            loss += iou_loss
+                    loss = aff_loss + iou_loss + seg_loss
+                    tot_loss_avg += loss.item()
+                    dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 
-                            tot_loss_avg += loss.item()
-                            dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
+                    # get val metrics
+                    pred_mask, weight_mask = (pred_mask > 0).to(torch.uint8), weight_mask.to(torch.uint8)
+                    aligned_label = aligned_label.to(torch.uint8)
+                    iou_learn_m.update(aligned_label, pred_mask * weight_mask)
+                    iou_org_m.update(pred_mask, mask)
 
-                        # get val metrics
-                        pred_mask, weight_mask = (pred_mask > 0).to(torch.uint8), weight_mask.to(torch.uint8)
-                        aligned_label = aligned_label.to(torch.uint8)
-                        iou_learn_m.update(aligned_label, pred_mask * weight_mask)
-                        iou_org_m.update(pred_mask, mask)
+                    iou_learn = iou_learn_m.compute().item()
+                    iou_org = iou_org_m.compute().item()
+                    dict_for_postfix["iou_lea"] = f'{iou_learn:.4f}'
+                    dict_for_postfix["iou_org"] = f'{iou_org:.4f}'
 
-                        iou_learn = iou_learn_m.compute().item()
-                        iou_org = iou_org_m.compute().item()
-                        dict_for_postfix["iou_lea"] = f'{iou_learn:.4f}'
-                        dict_for_postfix["iou_org"] = f'{iou_org:.4f}'
+                    if torch.cuda.is_available():
+                        peak_memory = torch.cuda.max_memory_allocated() / (1024 ** 2)
+                        dict_for_postfix["pk_mem"] = f'{peak_memory:.1f} MB'
+                        pbar_val.set_postfix(dict_for_postfix, epoch=f'{epoch + 1}/{self.epochs}')
+                    else:
+                        pbar_val.set_postfix(dict_for_postfix, epoch=f'{epoch + 1}/{self.epochs}')
 
-                        if torch.cuda.is_available():
-                            peak_memory = torch.cuda.max_memory_allocated() / (1024 ** 2)
-                            dict_for_postfix["pk_mem"] = f'{peak_memory:.1f} MB'
-                            pbar_val.set_postfix(dict_for_postfix, epoch=f'{epoch + 1}/{self.epochs}')
-                        else:
-                            pbar_val.set_postfix(dict_for_postfix, epoch=f'{epoch + 1}/{self.epochs}')
-
-                    # validation summary
-                    if self.use_wb:
-                        writer.log({"val/seg_loss": ce_loss_avg / len(data_loader_val),
-                                    "val/iou_learn": iou_learn,
-                                    "val/iou_org": iou_org,
+                # validation summary
+                if self.use_wb:
+                    writer.log({"val/seg_loss": ce_loss_avg / len(data_loader_val),
+                                "val/iou_learn": iou_learn,
+                                "val/iou_org": iou_org,
+                                "epoch": epoch})
+                    if self.use_reg:
+                        writer.log({"val/reg_loss": aff_loss_avg / len(data_loader_val),
+                                    "val/iou_loss": iou_loss_avg / len(data_loader_val),
+                                    "val/total_loss": tot_loss_avg / len(data_loader_val),
                                     "epoch": epoch})
-                        if self.use_reg:
-                            writer.log({"val/reg_loss": aff_loss_avg / len(data_loader_val),
-                                        "val/iou_loss": iou_loss_avg / len(data_loader_val),
-                                        "val/total_loss": tot_loss_avg / len(data_loader_val),
-                                        "epoch": epoch})
-                pbar_val.reset()
+            pbar_val.reset()
 
-            # change lr according to the scheduler
-            lr_scheduler.step()
+            # save best model with score
+            if iou_learn > best_iou:
+                best_iou = iou_learn
 
+                # Save best model with highest iou_learn score
+                best_path = os.path.join(self.checkpoints_dir, 'best.pth')
+                encoder_path = os.path.join(self.checkpoints_dir, 'encoder.pth')
+                decoder_path = os.path.join(self.checkpoints_dir, 'decoder.pth')
+                tnet_path = os.path.join(self.checkpoints_dir, 'tnet.pth')
+
+                print(f"Best model found at epoch {epoch} with with IOU_learn score: {round(best_iou, 5)}")
+                torch.save({
+                    'model': model.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'epoch': epoch,
+                    'metrics': dict_for_postfix,
+                    'params': self.kwargs
+                }, best_path)
+
+                # save each part separately (encoder, decoder and tnet)
+                torch.save(model[0].dinov3.state_dict(), encoder_path)
+                torch.save(model[0].decoder_state_dict(), decoder_path)
+                torch.save(model[1].state_dict(), tnet_path)
+
+            """
             # save the latest weights
             latest_filename = 'latest.pth'
             checkpoint_latest_path = os.path.join(self.checkpoints_dir, latest_filename)
@@ -331,16 +362,4 @@ class AlignTraining:
                 'metrics': dict_for_postfix,
                 'params': self.kwargs
             }, checkpoint_latest_path)
-
-            # save best model with score
-            if iou_learn > best_iou:
-                best_iou = iou_learn
-                print(f"Best model found at epoch {epoch} with with IOU_learn score: {round(best_iou, 5)}")
-                checkpoint_best_path = os.path.join(self.checkpoints_dir, 'best.pth')
-                torch.save({
-                    'model': model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'epoch': epoch,
-                    'metrics': dict_for_postfix,
-                    'params': self.kwargs
-                }, checkpoint_best_path)
+            """
