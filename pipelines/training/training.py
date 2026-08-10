@@ -220,7 +220,7 @@ class AlignTraining:
 
                 # get metrics
                 pred_mask, binary_weight_mask = (pred_mask > 0).to(torch.uint8), (weight_mask > 0).to(torch.uint8)
-                aligned_label = aligned_label.to(torch.uint8)
+                aligned_label = (aligned_label > 0.5).to(torch.uint8)
                 iou_seg_m.update(pred_mask, true_mask)
                 iou_learn_m.update(aligned_label, pred_mask * binary_weight_mask)
                 iou_org_m.update(pred_mask, mask)
@@ -334,7 +334,7 @@ class AlignTraining:
 
                     # get val metrics
                     pred_mask, weight_mask = (pred_mask > 0).to(torch.uint8), (weight_mask > 0).to(torch.uint8)
-                    aligned_label = aligned_label.to(torch.uint8)
+                    aligned_label = (aligned_label > 0.5).to(torch.uint8)
                     iou_seg_m.update(pred_mask, true_mask)
                     iou_learn_m.update(aligned_label, pred_mask * weight_mask)
                     new_affine = add_third_row(true_affine) @ add_third_row(params.detach())

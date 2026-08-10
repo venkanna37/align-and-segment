@@ -29,18 +29,17 @@ class AlignTraining:
         self.patch_size = kwargs.get('patch_size', None)
         self.data_dir = kwargs.get('data_dir', None)
         self.batch_size = kwargs.get('batch_size', 2)
-        self.checkpoints_dir = kwargs.get('checkpoints_dir', './checkpoints')
+        self.checkpoints_dir = kwargs.get('checkpoints_dir', './runs')
         self.log_dir = kwargs.get('log_dir', os.path.join(self.checkpoints_dir, 'logs'))
         self.checkpoints_dir = os.path.join(self.checkpoints_dir, self.keyword)
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
         self.sample_size = kwargs.get('sample_size', None)
-        self.synth_method = kwargs.get('misalign_magnitude', 50)  # 1: Uniform
+        self.synth_method = kwargs.get('misalign_magnitude', 50)
         self.aug_shift = kwargs.get('aug_shift', 10)
-        self.max_shift = kwargs.get('max_shift', 100)       # this is for reg_loss
+        self.max_shift = kwargs.get('max_shift', 100)
         self.use_snet_aug = kwargs.get('use_snet_aug', True)
         self.noise_type = kwargs.get('noise_type', 'u')
-        self.rescale_value = kwargs.get('rescale_value', 255)
 
         # model parameters
         self.model_name = kwargs.get('model_name', 'method1')
@@ -203,7 +202,7 @@ class AlignTraining:
 
                 # get metrics
                 pred_mask, binary_weight_mask = (pred_mask > 0).to(torch.uint8), (weight_mask > 0).to(torch.uint8)
-                aligned_label = aligned_label.to(torch.uint8)
+                aligned_label = (aligned_label > 0.5).to(torch.uint8)
                 iou_learn_m.update(aligned_label, pred_mask * binary_weight_mask)
                 iou_org_m.update(pred_mask, mask)
 
@@ -283,7 +282,7 @@ class AlignTraining:
 
                     # get val metrics
                     pred_mask, weight_mask = (pred_mask > 0).to(torch.uint8), (weight_mask > 0).to(torch.uint8)
-                    aligned_label = aligned_label.to(torch.uint8)
+                    aligned_label = (aligned_label > 0.5).to(torch.uint8)
                     iou_learn_m.update(aligned_label, pred_mask * weight_mask)
                     iou_org_m.update(pred_mask, mask)
 
@@ -317,7 +316,6 @@ class AlignTraining:
 
                 # Save best model with highest iou_learn score
                 best_path = os.path.join(self.checkpoints_dir, 'best.pth')
-                encoder_path = os.path.join(self.checkpoints_dir, 'encoder.pth')
                 decoder_path = os.path.join(self.checkpoints_dir, 'decoder.pth')
                 tnet_path = os.path.join(self.checkpoints_dir, 'tnet.pth')
 
@@ -331,7 +329,6 @@ class AlignTraining:
                 }, best_path)
 
                 # save each part separately (encoder, decoder and tnet)
-                torch.save(model[0].dinov3.state_dict(), encoder_path)
                 torch.save(model[0].decoder_state_dict(), decoder_path)
                 torch.save(model[1].state_dict(), tnet_path)
 
