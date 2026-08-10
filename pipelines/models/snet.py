@@ -1,13 +1,45 @@
 """
-SNets with ConvNext-Tiny as encoder and custom decoder.
+SNet with ConvNeXt-Tiny encoder, DINOv3 weights and custom decoderer
 """
 
+import timm
 import torch
 import torch.nn as nn
 from torchvision.models import convnext_tiny
 
 
-# SNet with ConvNext-Tiny as encoder
+class Dinov3_hub(torch.nn.Module):
+    def __init__(self, number_of_outputs=4):
+        super(Dinov3_hub, self).__init__()
+        REPO_DIR = '../dinov3'
+        WEIGHTS_PATH = '../dinov3/dinov3_convnext_tiny_pretrain_lvd1689m-21b726bb.pth'
+        self.number_of_outputs = number_of_outputs
+        self.dinov3 = torch.hub.load(REPO_DIR, 'dinov3_convnext_tiny',
+                               source='local',
+                               weights=WEIGHTS_PATH)
+
+    def forward(self, x):
+        encoder_feats = list(self.dinov3.get_intermediate_layers(x, n=self.number_of_outputs))
+        for i in range(len(encoder_feats)):
+            B, N, C = encoder_feats[i].shape
+            H = W = int(N ** 0.5)
+            encoder_feats[i] = encoder_feats[i].permute(0, 2, 1).reshape(B, C, H, W)
+        return encoder_feats
+
+
+class Dinov3_timm(torch.nn.Module):
+    def __init__(self, number_of_outputs=4):
+        super(Dinov3, self).__init__()
+        self.number_of_outputs =number_of_outputs
+        self.dinov3 = timm.create_model('convnext_tiny.dinov3_lvd1689m',
+                                        pretrained=True,
+                                        features_only=True,
+                                        out_indices=tuple(range(4 - self.number_of_outputs, 4)))
+
+    def forward(self, x):
+        return self.dinov3(x)
+
+
 class DINOv3Decoder(torch.nn.Module):
     def __init__(self, in_channels):
         super(DINOv3Decoder, self).__init__()
@@ -59,41 +91,17 @@ class DINOv3Decoder(torch.nn.Module):
         return feats
 
 
-class ConvNeXtTinyBackbone(nn.Module):
-    def __init__(self, pretrained=False):
-        super().__init__()
-        self.model = convnext_tiny(
-            weights="IMAGENET1K_V1" if pretrained else None
-        )
-        self.features = self.model.features  # only backbone
+class Dinov3Seg(torch.nn.Module):
+    def __init__(self, in_channels=3, method='method1'):
+        super(Dinov3Seg, self).__init__()
 
-    def forward(self, x):
-        outputs = []
+        if method == 'method1':
+            self.dinov3 = Dinov3_hub()
+        elif method == 'method2':
+            self.dinov3 = Dinov3_timm()
+        else:
+            raise NotImplementedError
 
-        x = self.features[0](x)  # patch embed
-        x = self.features[1](x)  # stage 1
-        outputs.append(x)
-
-        x = self.features[2](x)  # downsample
-        x = self.features[3](x)  # stage 2
-        outputs.append(x)
-
-        x = self.features[4](x)  # downsample
-        x = self.features[5](x)  # stage 3
-        outputs.append(x)
-
-        x = self.features[6](x)  # downsample
-        x = self.features[7](x)  # stage 4
-        outputs.append(x)
-
-        return outputs  # [C1, C2, C3, C4]
-
-
-class ConvSeg(torch.nn.Module):
-    def __init__(self, in_channels=3):
-        super(ConvSeg, self).__init__()
-
-        self.dinov3 = ConvNeXtTinyBackbone()
         self.skip_channels = 64
         self.first_block = nn.Sequential(
             nn.Conv2d(in_channels, self.skip_channels, kernel_size=1, stride=1, bias=True),
@@ -113,10 +121,23 @@ class ConvSeg(torch.nn.Module):
         )
         self.seg_layer = nn.Conv2d(self.skip_channels, 1, 1)
 
+    def decoder_state_dict(self):
+        return {
+            "first_block": self.first_block.state_dict(),
+            "decoder": self.decoder.state_dict(),
+            "last_decoder_block": self.last_decoder_block.state_dict(),
+            "seg_layer": self.seg_layer.state_dict(),
+        }
+
+    def load_decoder_state_dict(self, state_dict):
+        self.first_block.load_state_dict(state_dict["first_block"])
+        self.decoder.load_state_dict(state_dict["decoder"])
+        self.last_decoder_block.load_state_dict(state_dict["last_decoder_block"])
+        self.seg_layer.load_state_dict(state_dict["seg_layer"])
 
     def forward(self, x):
-        # use frozen features
-        encoder_feats = self.dinov3(x)
+        # use dinov3 features
+        encoder_feats = list(self.dinov3(x))
         decoder_feats = self.decoder(encoder_feats)
 
         skip_feats = self.first_block(x)

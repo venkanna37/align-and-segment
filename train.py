@@ -41,8 +41,10 @@ if __name__ == '__main__':
 
     # Model parameters
     parser.add_argument('--model_name', type=str,
-                        choices=['method1', 'method1a', 'method1b', 'method1c'], default='method1',
+                        choices=['method1', 'method2'], default='method1',
                         help="Model name is combination of types of architecture in SNet and TNet")
+                        # method1: model configuration from torch.hub
+                        # method2: model configuration from timm
     # check pipelines/models/load_models.py for more details about model_names
     parser.add_argument('--tnet_backbone', type=str, default="vitsmall",
                         help="TNet backbone name")
