@@ -20,9 +20,6 @@ from pipelines.utils.process_tensor import split_3_image
 from .loss_functions import loss_for_seg
 
 
-random.seed(42)
-
-
 class AlignTraining:
     def __init__(self, **kwargs):
 
@@ -30,12 +27,11 @@ class AlignTraining:
         self.keyword = kwargs.get('keyword', 'test')
 
         # data parameters
-        self.patch_size = kwargs.get('patch_size', None)
-        self.data_dir = kwargs.get('data_dir', None)
+        self.patch_size = kwargs.get('patch_size', 512)
+        self.data_dir = kwargs.get('data_dir', './datasets')
         self.batch_size = kwargs.get('batch_size', 2)
         self.max_shift = kwargs.get('max_shift', 100)  # this is for reg_loss
-        self.checkpoints_dir = kwargs.get('checkpoints_dir', './checkpoints')
-        self.checkpoints_org = self.checkpoints_dir
+        self.checkpoints_dir = kwargs.get('checkpoints_dir', './runs')
         self.log_dir = kwargs.get('log_dir', os.path.join(self.checkpoints_dir, 'logs'))
         self.checkpoints_dir = os.path.join(self.checkpoints_dir, self.keyword)
         if not os.path.exists(self.checkpoints_dir):
@@ -52,15 +48,12 @@ class AlignTraining:
         self.epochs = kwargs.get('epochs', 300)
         self.reg_loss_type = kwargs.get('reg_loss_type', 'mse')
         self.seg_loss_type = kwargs.get('seg_loss_type', 'cross_entropy')
-        self.reg_loss_wt = kwargs.get('reg_loss_wt', 1)
-        self.use_reg = kwargs.get('use_reg', False)
-        self.num_workers = kwargs.get('num_workers', 0)
+        self.reg_loss_wt = kwargs.get('reg_loss_wt', 100)
+        self.num_workers = kwargs.get('num_workers', 4)
 
         # visualization parameters
         self.use_wb = kwargs.get('use_wb', False)
         self.wb_project_name = kwargs.get('wb_project_name', 'AnS')
-        self.write_images = kwargs.get('write_images', False)
-
 
         if torch.cuda.is_available():
             self.device = torch.device('cuda')
@@ -78,7 +71,7 @@ class AlignTraining:
         # download data from https://huggingface.co/datasets/kevinlikai/ReBO
         rebo_data_dir = os.path.join(self.data_dir, 'rebo')
         if not os.path.exists(rebo_data_dir):
-            os.mkdir(rebo_data_dir)
+            os.makedirs(rebo_data_dir, exist_ok=True)
         snapshot_download(repo_id='kevinlikai/ReBO', repo_type='dataset', local_dir=rebo_data_dir)
 
         train_set = AlignDatagen(rebo_data_dir,
@@ -87,14 +80,14 @@ class AlignTraining:
                                  patch_size=self.patch_size)
         data_loader_train = DataLoader(train_set,
                                        self.batch_size,
-                                       drop_last=True,
+                                       drop_last=False,
                                        num_workers=self.num_workers,
                                        shuffle=True)
 
         val_set = AlignDatagen(rebo_data_dir,
                                sample_size=self.sample_size,
                                set_name="val",
-                               patch_size=self.batch_size)
+                               patch_size=self.patch_size)
         data_loader_val = DataLoader(val_set,
                                      self.batch_size,
                                      drop_last=False,
@@ -105,13 +98,11 @@ class AlignTraining:
         snet, tnet = load_model(self.model_name, self.tnet_backbone)
         model = torch.nn.Sequential(snet, tnet)
         model.to(self.device)
-
         torch.nn.init.zeros_(tnet.fc.weight)
 
         trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = torch.optim.AdamW(trainable_params, lr=self.learning_rate)
         best_iou = 0
-        start_epoch = 0
 
         n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print('Trainable params:', n_params)
@@ -136,9 +127,8 @@ class AlignTraining:
         iou_align_m = JaccardIndex(task="binary").to(self.device)
         iou_org_m = JaccardIndex(task="binary").to(self.device)
 
-        # freeze_epoch = self.epochs + 1
         print("Start training")
-        for epoch in range(start_epoch, self.epochs):
+        for epoch in range(self.epochs):
             iou_seg_m.reset()
             iou_learn_m.reset()
             iou_align_m.reset()
@@ -166,8 +156,8 @@ class AlignTraining:
                 aligned_label = spatial_transformer_network(mask, params)
                 weight_mask = (spatial_transformer_network(weight_mask, params.detach()) > 0).float()
 
-                loss = loss_for_seg(pred_mask, aligned_label, weight_mask, loss_type=self.seg_loss_type)
-                ce_loss_avg += loss.item()
+                seg_loss = loss_for_seg(pred_mask, aligned_label, weight_mask, loss_type=self.seg_loss_type)
+                ce_loss_avg += seg_loss.item()
                 dict_for_postfix["seg_ls"] = f'{ce_loss_avg / (i + 1):.4f}'
 
                 aug_mask1, g1 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
@@ -187,7 +177,7 @@ class AlignTraining:
                 iou_loss_avg += iou_loss.item()
                 dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
-                loss = aff_loss + iou_loss
+                loss = aff_loss + iou_loss + seg_loss
                 tot_loss_avg += loss.item()
                 dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 
@@ -266,8 +256,8 @@ class AlignTraining:
                     aligned_label = spatial_transformer_network(mask, params)
                     weight_mask = (spatial_transformer_network(weight_mask, params.detach()) > 0).float()
 
-                    loss = loss_for_seg(pred_mask, aligned_label, weight_mask, loss_type=self.seg_loss_type)
-                    ce_loss_avg += loss.item()
+                    seg_loss = loss_for_seg(pred_mask, aligned_label, weight_mask, loss_type=self.seg_loss_type)
+                    ce_loss_avg += seg_loss.item()
                     dict_for_postfix["seg_ls"] = f'{ce_loss_avg / (i + 1):.4f}'
 
                     aug_mask1, g1 = transform_mask_with_random_affine(mask, self.device, max_shift=self.max_shift)
@@ -287,13 +277,13 @@ class AlignTraining:
                     iou_loss_avg += iou_loss.item()
                     dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
-                    loss = aff_loss + iou_loss
+                    loss = aff_loss + iou_loss + seg_loss
                     tot_loss_avg += loss.item()
                     dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 
                     # get val metrics
                     pred_mask, weight_mask = (pred_mask > 0).to(torch.uint8), (weight_mask > 0).to(torch.uint8)
-                    aligned_label = aligned_label.to(torch.uint8)
+                    aligned_label = (aligned_label > 0).to(torch.uint8)
                     iou_seg_m.update(pred_mask, true_mask)
                     iou_learn_m.update(aligned_label, pred_mask * weight_mask)
                     iou_align_m.update(aligned_label, true_mask * weight_mask)
@@ -338,7 +328,6 @@ class AlignTraining:
 
                 # Save best model with highest iou_learn score
                 best_path = os.path.join(self.checkpoints_dir, 'best.pth')
-                encoder_path = os.path.join(self.checkpoints_dir, 'encoder.pth')
                 decoder_path = os.path.join(self.checkpoints_dir, 'decoder.pth')
                 tnet_path = os.path.join(self.checkpoints_dir, 'tnet.pth')
 
@@ -353,7 +342,6 @@ class AlignTraining:
                 }, best_path)
 
                 # save each part separately (encoder, decoder and tnet)
-                torch.save(model[0].dinov3.state_dict(), encoder_path)
                 torch.save(model[0].decoder_state_dict(), decoder_path)
                 torch.save(model[1].state_dict(), tnet_path)
 

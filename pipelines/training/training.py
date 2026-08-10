@@ -398,7 +398,6 @@ class AlignTraining:
 
                 # Save best model with highest iou_learn score
                 best_path = os.path.join(self.checkpoints_dir, 'best.pth')
-                encoder_path = os.path.join(self.checkpoints_dir, 'encoder.pth')
                 decoder_path = os.path.join(self.checkpoints_dir, 'decoder.pth')
                 tnet_path = os.path.join(self.checkpoints_dir, 'tnet.pth')
 
@@ -412,7 +411,6 @@ class AlignTraining:
                 }, best_path)
 
                 # save each part separately (encoder, decoder and tnet)
-                torch.save(model[0].dinov3.state_dict(), encoder_path)
                 torch.save(model[0].decoder_state_dict(), decoder_path)
                 torch.save(model[1].state_dict(), tnet_path)
 
