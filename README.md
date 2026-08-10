@@ -3,9 +3,9 @@
 # Align and Segment (AnS): Unsupervised Learning for Building Segmentation From Misaligned Labels
 
 [![arXiv](https://img.shields.io/badge/arXiv-2607.10841-b31b1b.svg)](https://arxiv.org/pdf/2607.10841)
-[![Papers](https://img.shields.io/badge/-Papers-orange?logo=huggingface&logoColor=yellow&labelColor=black)](https://huggingface.co/papers/2607.10841)
-[![Dataset](https://img.shields.io/badge/-Dataset-orange?logo=huggingface&logoColor=yellow&labelColor=black)](https://huggingface.co/datasets/venkanna37/align-and-segment)
-[![Model](https://img.shields.io/badge/-Model-orange?logo=huggingface&logoColor=yellow&labelColor=black)](https://huggingface.co/venkanna37/align-and-segment)
+[![Papers](https://img.shields.io/badge/-Papers-orange?logo=huggingface&logoColor=FFD21E&labelColor=black)](https://huggingface.co/papers/2607.10841)
+[![Dataset](https://img.shields.io/badge/-Dataset-orange?logo=huggingface&logoColor=FFD21E&labelColor=black)](https://huggingface.co/datasets/venkanna37/align-and-segment)
+[![Model](https://img.shields.io/badge/-Model-orange?logo=huggingface&logoColor=FFD21E&labelColor=black)](https://huggingface.co/venkanna37/align-and-segment)
 
 This is the official repository for the ECCV 2026 paper **"Align and Segment: Unsupervised Learning for Building Segmentation From Misaligned Labels."**
 
