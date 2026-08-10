@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     # data directory parameters
     parser.add_argument('--data_dir', type=str, default='./datasets',
-                        help='data directory where input data available or can be downloaded', )
+                        help='data directory where input data available or can be downloaded')
     parser.add_argument('--checkpoints_dir', type=str,  default='./runs',
                         help='output directory to save check points and logs')
 

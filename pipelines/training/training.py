@@ -113,7 +113,7 @@ class AlignTraining:
                                      num_workers=self.num_workers,
                                      shuffle=False)
 
-        # get the UNet model and initialize weights
+        # get model and initialize weights
         snet, tnet = load_model(self.model_name, self.tnet_backbone)
         model = torch.nn.Sequential(snet, tnet)
         model.to(self.device)

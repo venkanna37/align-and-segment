@@ -1,0 +1,24 @@
+# Commands to reproduce pretrained weights and results on test set #
+------------------------------------------------------------------------------------------------------------------------
+## Training on synthetic datasets with two different noise types
+python train.py --batch_size 24 --model_name method1 --dataset lasvegas --noise_type u --keyword lasvegas_u --use_wb
+python train.py --batch_size 24 --model_name method1 --dataset lasvegas --noise_type b --keyword lasvegas_b --use_wb
+python train.py --batch_size 24 --model_name method1 --dataset paris --noise_type u --keyword paris_u --use_wb
+python train.py --batch_size 24 --model_name method1 --dataset paris --noise_type b --keyword paris_b --use_wb
+python train.py --batch_size 24 --model_name method1 --dataset khartoum --noise_type u --keyword khartoum_u --use_wb
+python train.py --batch_size 24 --model_name method1 --dataset khartoum --noise_type b --keyword khartoum_b --use_wb
+
+## Training on San Juan city for qualitaive analysis
+python train.py --batch_size 24 --dataset sanjuan --keyword sanjuan --use_wb
+
+## Training on ReBO dataset, a dataset with both real and aligned labels
+python train.py --batch_size 12 --dataset rebo --keyword rebo --use_wb
+
+                                                                             # timm pretrained weights #
+## commands for evaluating on synthetic dataset                               |  IoU_Seg  | IoU_align |
+python test.py --keyword lasvegas_u --noise_type u --dataset_name lasvegas    |  0.79     | 0.83      |
+python test.py --keyword lasvegas_b --noise_type b --dataset_name lasvegas    |  0.66     | 0.71      |
+python test.py --keyword paris_u --noise_type u --dataset_name paris          |  0.56     | 0.64      |
+python test.py --keyword paris_b --noise_type b --dataset_name paris          |  0.56     | 0.74      |
+python test.py --keyword khartoum_u --noise_type u --dataset_name khartoum    |  0.63     | 0.71      |
+python test.py --keyword khartoum_b --noise_type b --dataset_name khartoum    |  0.54     | 0.57      |

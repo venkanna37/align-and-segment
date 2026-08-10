@@ -3,10 +3,10 @@ import json
 import torch
 import wandb
 import random
-random.seed(42)
 from tqdm import tqdm
 from torchmetrics import JaccardIndex
 from torch.utils.data import DataLoader
+from huggingface_hub import snapshot_download
 from segmentation_models_pytorch.losses import JaccardLoss
 from segmentation_models_pytorch.losses.constants import BINARY_MODE
 
@@ -15,7 +15,6 @@ from pipelines.models.load_models import load_model
 from pipelines.datagen.rebo_datagen import AlignDatagen
 from pipelines.datagen.spacenet2 import AlignDatagen as AlignDatagen_Spacenet
 from pipelines.models.stn import spatial_transformer_network
-from pipelines.utils.matrices import inverse_affine_matrix, add_third_row
 from pipelines.training.loss_functions import loss_for_seg
 
 
@@ -25,17 +24,15 @@ class AlignPrediction():
         self.keyword = kwargs.get('keyword', 'test')
 
         # data parameters
-        self.patch_size = kwargs.get('patch_size', None)
-        self.data_dir = kwargs.get('data_dir', None)
+        self.patch_size = kwargs.get('patch_size', 320)
+        self.data_dir = kwargs.get('data_dir', './datasets')
+        self.dataset_name = kwargs.get('dataset_name', 'sample_data')
         self.batch_size = kwargs.get('batch_size', 2)
-        self.checkpoints_dir = kwargs.get('checkpoints_dir', None)
-        self.sample_size = kwargs.get('sample_size', None)
-        self.dataset_type = kwargs.get('dataset_type', None)
-        self.synth_method = kwargs.get('synth_method', 1)  # 1: Uniform
+        self.checkpoints_dir = kwargs.get('checkpoints_dir', './runs/')
+        self.synth_method = kwargs.get('misalign_magnitude', 50)  # 1: Uniform
         self.set_name = kwargs.get('set_name', 'test')
         self.noise_type = kwargs.get('noise_type', 'u')
-        self.dataset = kwargs.get('dataset', 'spacenet')
-        self.num_workers = kwargs.get('num_workers', 0)
+        self.num_workers = kwargs.get('num_workers', 4)
 
         # model parameters
         self.model_name = kwargs.get('model_name', 'method1')
@@ -55,16 +52,24 @@ class AlignPrediction():
             print(f"{key}: {value}")
         print("----------------------------- \n")
 
-    def predict(self):
-        if self.dataset == 'rebo':
+    def evaluate(self):
+        if not os.path.exists(self.data_dir):
+            os.mkdir(dataset_dir)
+        # fixme currently downloading entire city data here, downloading test set enough here
+        if self.dataset_name == 'rebo':
+            # downloading both training and test sets
+
+            snapshot_download(repo_id='kevinlikai/ReBO', repo_type='dataset', local_dir=test_data_dir)
             test_set = AlignDatagen(self.data_dir,
                                     set_name=self.set_name,
-                                    patch_size=self.patch_size)
+                                    patch_size=512,
+                                    )
         else:
+            snapshot_download(repo_id='venkanna37/align-and-segment', repo_type='dataset',
+                              allow_patterns=[f'{self.dataset_name}/**'], local_dir=self.data_dir)
             test_set = AlignDatagen_Spacenet(self.data_dir,
-                                    sample_size=self.sample_size,
                                     set_name=self.set_name,
-                                    dataset_type=self.dataset_type,
+                                    dataset_name=self.dataset_name,
                                     synth_method=self.synth_method,
                                     patch_size=self.patch_size,
                                     noise_type=self.noise_type)
@@ -74,18 +79,26 @@ class AlignPrediction():
                                      num_workers=self.num_workers,
                                      shuffle=False)
 
-        # get the UNet model and initialize weights
-        snet, tnet = load_model(self.model_name, self.tnet_backbone, self.device)
-
+        # get model
+        snet, tnet = load_model(self.model_name, self.tnet_backbone)
         model = torch.nn.Sequential(snet, tnet)
-        n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print('number of params:', n_params)
+
+        # load weights, load complete model weights if exists, esle load decoder and tnet
+        complete_weights = os.path.join(self.checkpoints_dir, self.keyword, 'best.pth')
+        decoder_weights = os.path.join(self.checkpoints_dir, self.keyword, 'decoder.pth')
+        tnet_weights = os.path.join(self.checkpoints_dir, self.keyword, 'tnet.pth')
+        if os.path.exists(complete_weights):
+            model_weights = torch.load(complete_weights, map_location=self.device)
+            model.load_state_dict(model_weights['model'], strict=True)
+        elif os.path.exists(decoder_weights) and os.path.exists(tnet_weights):
+            decoder_weights = torch.load(decoder_weights, map_location=self.device)
+            tnet_weights = torch.load(tnet_weights, map_location=self.device)
+            model[0].load_decoder_state_dict(decoder_weights)
+            model[1].load_state_dict(tnet_weights, strict=True)
+        else:
+            raise FileNotFoundError
+
         model.to(self.device)
-
-        # load weights
-        model_weights = torch.load(self.weights_path, map_location=self.device)
-        model.load_state_dict(model_weights['model'], strict=True)
-
 
         iou_pred_m = JaccardIndex(task="binary").to(self.device)
         iou_learn_m = JaccardIndex(task="binary").to(self.device)
