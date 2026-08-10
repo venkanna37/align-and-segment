@@ -1,7 +1,11 @@
 ⚠️ **This code is under preparation. It will be ready soon!**
 
 # Align and Segment (AnS): Unsupervised Learning for Building Segmentation From Misaligned Labels
+
 [![arXiv](https://img.shields.io/badge/arXiv-2607.10841-b31b1b.svg)](https://arxiv.org/pdf/2607.10841)
+[![Hugging Face Papers](https://img.shields.io/badge/HuggingFace-Papers-yellow)](https://huggingface.co/papers/2607.10841)
+[![Hugging Face Dataset](https://img.shields.io/badge/HuggingFace-Dataset-orange)](https://huggingface.co/datasets/venkanna37/align-and-segment)
+[![Hugging Face Model](https://img.shields.io/badge/HuggingFace-Model-orange?logo=huggingface)](https://huggingface.co/venkanna37/align-and-segment)
 
 This is the official repository for the ECCV 2026 paper **"Align and Segment: Unsupervised Learning for Building Segmentation From Misaligned Labels."**
 
@@ -34,7 +38,7 @@ pip install -r requirements.txt
 All derived datasets and checkpoints are hosted on Hugging Face and are downloaded automatically during training and evaluation. They can also be downloaded separately:
 
 - [Datasets](https://huggingface.co/datasets/venkanna37/align-and-segment)
-- [Models](https://huggingface.co/venkanna37/align-and-segment)
+- [Weights](https://huggingface.co/venkanna37/align-and-segment)
 
 To avoid redistributing DINOv3 weights and code, the [`timm`](https://timm.fast.ai/) library is used, which automatically downloads the weights during training and testing.
 The decoder weights for SNet and TNet are shared so the results can be reproduced.
