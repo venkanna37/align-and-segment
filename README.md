@@ -27,7 +27,6 @@ Installing the packages in `requirements.txt` allows the trained weights and tes
 
 ```bash
 conda create -n "ans" python=3.11.0
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
 pip install -r requirements.txt
 ```
 
