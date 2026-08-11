@@ -54,8 +54,6 @@ if __name__ == '__main__':
                         help='Training epochs')
     parser.add_argument('--learning_rate', type=float, default=0.00001,
                         help='Learning rate')
-    parser.add_argument('--loss_setting', type=int, default=4,
-                        help='Loss combination for TNet')
     # Check training.py file for more details about loss_setting
     parser.add_argument('--seg_loss_type', type=str, default='cross_entropy',
                         help='First loss for SNet training')

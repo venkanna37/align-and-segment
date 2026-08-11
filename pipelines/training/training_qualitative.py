@@ -87,7 +87,7 @@ class AlignTraining:
 
         data_loader_train = DataLoader(train_set,
                                        self.batch_size,
-                                       drop_last=False,
+                                       drop_last=True,
                                        num_workers=self.num_workers,
                                        shuffle=True)
 

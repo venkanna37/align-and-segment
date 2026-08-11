@@ -29,7 +29,7 @@ class Dinov3_hub(torch.nn.Module):
 
 class Dinov3_timm(torch.nn.Module):
     def __init__(self, number_of_outputs=4):
-        super(Dinov3, self).__init__()
+        super(Dinov3_timm, self).__init__()
         self.number_of_outputs =number_of_outputs
         self.dinov3 = timm.create_model('convnext_tiny.dinov3_lvd1689m',
                                         pretrained=True,
