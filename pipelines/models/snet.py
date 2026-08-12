@@ -8,6 +8,12 @@ import torch.nn as nn
 from torchvision.models import convnext_tiny
 
 
+def init_weights(model):
+    for m in model.modules():
+        if isinstance(m, torch.nn.Conv2d):
+            torch.nn.init.kaiming_normal_(m.weight)
+
+
 class Dinov3_hub(torch.nn.Module):
     def __init__(self, number_of_outputs=4):
         super(Dinov3_hub, self).__init__()
@@ -120,6 +126,20 @@ class Dinov3Seg(torch.nn.Module):
             nn.BatchNorm2d(self.skip_channels)
         )
         self.seg_layer = nn.Conv2d(self.skip_channels, 1, 1)
+
+        self._init_weights()
+
+    def _init_weights(self):
+        """Initialize weights for decoder components."""
+        for module in [self.first_block, self.decoder, self.last_decoder_block, self.seg_layer]:
+            for m in module.modules():
+                if isinstance(m, nn.Conv2d):
+                    nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                    if m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.BatchNorm2d):
+                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(m.bias, 0)
 
     def decoder_state_dict(self):
         return {
