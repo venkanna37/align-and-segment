@@ -17,18 +17,17 @@ random.seed(42)
 import warnings
 warnings.filterwarnings('ignore')
 
+import matplotlib.pyplot as plt
 
 class AlignDatagen:
     def __init__(self, data_dir,
                  sample_size=None,
                  set_name=None,
-                 patch_size=None,
-                 rescale_value=255):
+                 patch_size=None):
 
         self.sample_size = sample_size
         self.patch_size = patch_size
         self.data_dir = data_dir
-        self.rescale_value = rescale_value
 
         self.set_name = 'train' if set_name == 'val' else set_name
         self.image_dir = os.path.join(data_dir, f'isra_{self.set_name}/')
@@ -99,20 +98,12 @@ class AlignDatagen:
 
     def __getitem__(self, index):
         # generate sample
-        image, label, gold = self.loadSample(index)
+        image, gold, label = self.loadSample(index)
 
         # image, label and gold label
         image = torch.from_numpy(image).float()
-        label = torch.from_numpy(label).float()
         gold = torch.from_numpy(gold).float()
-
-        # # random crop
-        # if self.set_name == 'train' and self.patch_size < 512:
-        #     cx = np.random.randint(0, image.shape[1] - self.patch_size)
-        #     cy = np.random.randint(0, image.shape[2] - self.patch_size)
-        #     image = image[:, cy:cy + self.patch_size, cx:cx + self.patch_size]
-        #     label = label[:, cy:cy + self.patch_size, cx:cx + self.patch_size]
-        #     gold = gold[:, cy:cy + self.patch_size, cx:cx + self.patch_size]
+        label = torch.from_numpy(label).float()
 
         return image, gold.unsqueeze(0), label.unsqueeze(0)
 
