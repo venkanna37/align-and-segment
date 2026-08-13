@@ -40,7 +40,7 @@ class AlignDatagen:
             self.val_ids = list(set(self.image_ids) - train_ids)
             train_ids = list(train_ids)
             self.image_ids = train_ids if set_name == 'train' else val_img_ids
-
+        print(f'Number of images in {set_name} set are: {len(self.image_ids)}')
         self.len = len(self.image_ids)
 
         # augmentation chances
@@ -106,7 +106,6 @@ class AlignDatagen:
 
         return image, gold.unsqueeze(0), label.unsqueeze(0)
 
-
     def aug_for_unet(self, X, y, z, device):
         B, C, H, W = X.shape
         y = y.float()
@@ -116,7 +115,7 @@ class AlignDatagen:
         X = X * (1 - hflip_coin) + hflip(X) * hflip_coin
         y = y * (1 - hflip_coin) + hflip(y) * hflip_coin
         z = z * (1 - hflip_coin) + hflip(z) * hflip_coin
-        
+
         # flipping vertical
         vflip_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.vflip_chance)
         X = X * (1 - vflip_coin) + vflip(X) * vflip_coin
@@ -129,14 +128,14 @@ class AlignDatagen:
         X = X * (1 - rot90_coin) + aug(X) * rot90_coin
         y = y * (1 - rot90_coin) + aug(y) * rot90_coin
         z = z * (1 - rot90_coin) + aug(z) * rot90_coin
-        
+
         # Rotation 180
         rot180_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
         aug = K.RandomRotation90(times=(2, 2), p=1, resample='nearest', keepdim=True)
         X = X * (1 - rot180_coin) + aug(X) * rot180_coin
         y = y * (1 - rot180_coin) + aug(y) * rot180_coin
         z = z * (1 - rot180_coin) + aug(z) * rot180_coin
-        
+
         # Rotation 270
         rot270_coin = torch.floor(torch.rand((B, 1, 1, 1), device=device) + self.rot90_chance)
         aug = K.RandomRotation90(times=(3, 3), p=1, resample='nearest', keepdim=True)
