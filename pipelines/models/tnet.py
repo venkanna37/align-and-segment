@@ -7,10 +7,13 @@ from .vits import ViT
 
 
 class TNet(nn.Module):
-    def __init__(self, in_channels=2, backbone_name='vitsmall'):
+    def __init__(self, in_channels=2,
+                 backbone_name='vitsmall',
+                 tnet_scale_factor=0.35):
         super().__init__()
         self.dim_size = 384
         self.backbone_name = backbone_name
+        self.tnet_scale_factor = tnet_scale_factor
 
         # ViT with different sizes
         if self.backbone_name == 'vitsmall':
@@ -36,7 +39,7 @@ class TNet(nn.Module):
         encoder_features = encoder_features.mean(dim=1)
         final_values = self.fc(encoder_features)
 
-        params = torch.tanh(final_values) * 0.35  # predicts misalignment range from -128 to 128 pixels
+        params = torch.tanh(final_values) * self.tnet_scale_factor # 0.35 predicts misalignment range from -128 to 128 pixels
         theta = params[:, 0]
         tx = params[:, 1]
         ty = params[:, 2]
