@@ -17,13 +17,12 @@ random.seed(42)
 import warnings
 warnings.filterwarnings('ignore')
 
-import matplotlib.pyplot as plt
-
 class AlignDatagen:
     def __init__(self, data_dir,
                  sample_size=None,
                  set_name=None,
-                 patch_size=None):
+                 patch_size=None,
+                 val_img_ids=None):
 
         self.sample_size = sample_size
         self.patch_size = patch_size
@@ -38,9 +37,9 @@ class AlignDatagen:
         if set_name == 'train' or set_name == 'val':
             counts = int(0.8 * len(self.image_ids))
             train_ids = set(random.sample(self.image_ids, counts))
-            val_ids = list(set(self.image_ids) - train_ids)
+            self.val_ids = list(set(self.image_ids) - train_ids)
             train_ids = list(train_ids)
-            self.image_ids = train_ids if set_name == 'train' else val_ids
+            self.image_ids = train_ids if set_name == 'train' else val_img_ids
 
         self.len = len(self.image_ids)
 

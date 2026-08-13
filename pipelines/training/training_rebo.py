@@ -59,12 +59,13 @@ class AlignTraining:
             self.device = torch.device('cuda')
         else:
             self.device = torch.device('cpu')
-        self.config = dict(vars(self))
+
         # print all resolved instance attributes
         print("\n -----Training parameters-----")
         for key, value in self.__dict__.items():
             print(f" {key:20s}: {value}")
         print("----------------------------- \n")
+        self.config = dict(vars(self))
 
     def train(self):
 
@@ -87,7 +88,8 @@ class AlignTraining:
         val_set = AlignDatagen(rebo_data_dir,
                                sample_size=self.sample_size,
                                set_name="val",
-                               patch_size=self.patch_size)
+                               patch_size=self.patch_size,
+                               val_img_ids=train_set.val_ids)
         data_loader_val = DataLoader(val_set,
                                      self.batch_size,
                                      drop_last=False,
@@ -100,10 +102,12 @@ class AlignTraining:
         model.to(self.device)
         torch.nn.init.zeros_(tnet.fc.weight)
 
-        optimizer = torch.optim.AdamW([
-            {"params": model[0].parameters(), "lr": self.learning_rate},
-            {"params": model[1].parameters(), "lr": self.learning_rate}
-        ])
+        trainable_params = filter(lambda p: p.requires_grad, model.parameters())
+        optimizer = torch.optim.AdamW(trainable_params, lr=self.learning_rate)
+        # optimizer = torch.optim.AdamW([
+        #     {"params": model[0].parameters(), "lr": self.learning_rate},
+        #     {"params": model[1].parameters(), "lr": self.learning_rate}
+        # ])
         best_iou = 0
 
         n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)

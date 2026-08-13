@@ -77,7 +77,6 @@ if __name__ == '__main__':
         train = training_qualitative.AlignTraining(**params)
     elif args.dataset_name == 'rebo':
         params['patch_size'] = 512
-        params['tnet_scale_factor'] = 0.1
         train = training_rebo.AlignTraining(**params)
     else:
         raise Exception("Unknown dataset type")

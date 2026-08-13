@@ -79,12 +79,12 @@ class AlignTraining:
         else:
             self.device = torch.device('cpu')
 
-        self.config = dict(vars(self))
         # print all resolved instance attributes
         print("\n -----Training parameters-----")
         for key, value in self.__dict__.items():
             print(f" {key:20s}: {value}")
         print("----------------------------- \n")
+        self.config = dict(vars(self))
 
     def train(self):
 
