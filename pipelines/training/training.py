@@ -29,7 +29,7 @@ def set_seed(seed=42):
     torch.manual_seed(seed)                # PyTorch CPU
     torch.cuda.manual_seed(seed)           # PyTorch current GPU
     torch.cuda.manual_seed_all(seed)       # PyTorch all GPUs (multi-GPU)
-set_seed()
+# set_seed()
 
 
 class AlignTraining:
@@ -78,12 +78,12 @@ class AlignTraining:
             self.device = torch.device('cuda')
         else:
             self.device = torch.device('cpu')
-        self.kwargs = kwargs
 
-        # print the parameters as a dictionary
+        self.config = dict(vars(self))
+        # print all resolved instance attributes
         print("\n -----Training parameters-----")
-        for key, value in self.kwargs.items():
-            print(f"  {key:20s}: {value}")
+        for key, value in self.__dict__.items():
+            print(f" {key:20s}: {value}")
         print("----------------------------- \n")
 
     def train(self):
@@ -157,7 +157,7 @@ class AlignTraining:
             else:
                 wandb_project = self.keyword
             print(f"Project name in weights and biases : {wandb_project}")
-            writer = wandb.init(project=self.wb_project_name, name=wandb_project, dir=self.log_dir, config=self.kwargs)
+            writer = wandb.init(project=self.wb_project_name, name=wandb_project, dir=self.log_dir, config=self.config)
 
         iou_seg_m = JaccardIndex(task="binary").to(self.device)
         iou_learn_m = JaccardIndex(task="binary").to(self.device)
@@ -401,8 +401,6 @@ class AlignTraining:
                     "epoch": epoch})
             pbar_val.close()
 
-
-
             if iou_learn > best_iou:
                 best_iou = iou_learn
 
@@ -417,7 +415,7 @@ class AlignTraining:
                     'optimizer': optimizer.state_dict(),
                     'epoch': epoch,
                     'metrics': dict_for_postfix,
-                    'params': self.kwargs
+                    'params': self.config
                 }, best_path)
 
                 # save each part separately (encoder, decoder and tnet)

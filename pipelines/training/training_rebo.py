@@ -42,11 +42,11 @@ class AlignTraining:
         # model parameters
         self.model_name = kwargs.get('model_name', 'method1')
         self.tnet_backbone = kwargs.get('tnet_backbone', 'vitsmall')
+        self.tnet_scale_factor = kwargs.get('tnet_scale_factor', 0.35)
 
         # train parameters
         self.learning_rate = kwargs.get('learning_rate', 0.00001)
         self.epochs = kwargs.get('epochs', 300)
-        self.reg_loss_type = kwargs.get('reg_loss_type', 'mse')
         self.seg_loss_type = kwargs.get('seg_loss_type', 'cross_entropy')
         self.reg_loss_wt = kwargs.get('reg_loss_wt', 100)
         self.num_workers = kwargs.get('num_workers', 4)
@@ -59,10 +59,10 @@ class AlignTraining:
             self.device = torch.device('cuda')
         else:
             self.device = torch.device('cpu')
-        self.kwargs = kwargs
-        # print the parameters as a dictionary
+        self.config = dict(vars(self))
+        # print all resolved instance attributes
         print("\n -----Training parameters-----")
-        for key, value in self.kwargs.items():
+        for key, value in self.__dict__.items():
             print(f" {key:20s}: {value}")
         print("----------------------------- \n")
 
@@ -95,13 +95,15 @@ class AlignTraining:
                                      shuffle=False)
 
         # get the UNet model and initialize weights
-        snet, tnet = load_model(self.model_name, self.tnet_backbone)
+        snet, tnet = load_model(self.model_name, self.tnet_backbone, tnet_scale_factor=self.tnet_scale_factor)
         model = torch.nn.Sequential(snet, tnet)
         model.to(self.device)
         torch.nn.init.zeros_(tnet.fc.weight)
 
-        trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-        optimizer = torch.optim.AdamW(trainable_params, lr=self.learning_rate)
+        optimizer = torch.optim.AdamW([
+            {"params": model[0].parameters(), "lr": self.learning_rate},
+            {"params": model[1].parameters(), "lr": self.learning_rate}
+        ])
         best_iou = 0
 
         n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -120,7 +122,7 @@ class AlignTraining:
             writer = wandb.init(project=self.wb_project_name,
                                 name=wandb_project,
                                 dir=self.log_dir,
-                                config=self.kwargs)
+                                config=self.config)
 
         iou_seg_m = JaccardIndex(task="binary").to(self.device)
         iou_learn_m = JaccardIndex(task="binary").to(self.device)
@@ -177,7 +179,7 @@ class AlignTraining:
                 iou_loss_avg += iou_loss.item()
                 dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
-                loss = aff_loss + iou_loss + seg_loss
+                loss = seg_loss + aff_loss + iou_loss
                 tot_loss_avg += loss.item()
                 dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 
@@ -200,7 +202,7 @@ class AlignTraining:
                 iou_org = iou_org_m.compute().item()
                 dict_for_postfix["iou_seg"] = f'{iou_seg:.4f}'
                 dict_for_postfix["iou_lea"] = f'{iou_learn:.4f}'
-                dict_for_postfix["iou_evl"] = f'{iou_align:.4f}'
+                dict_for_postfix["iou_align"] = f'{iou_align:.4f}'
                 dict_for_postfix["iou_org"] = f'{iou_org:.4f}'
 
                 if torch.cuda.is_available():
@@ -242,10 +244,6 @@ class AlignTraining:
                 image = val_batch[0].to(self.device)
                 true_mask = val_batch[1].to(self.device)
                 mask = val_batch[2].to(self.device)
-
-                if self.patch_size != 512:
-                    image, mask, true_mask = split_3_image(image, mask, true_mask,
-                                                           patch_size=self.patch_size)
                 weight_mask = torch.ones_like(mask)
 
                 # forward pass
@@ -277,7 +275,7 @@ class AlignTraining:
                     iou_loss_avg += iou_loss.item()
                     dict_for_postfix["iou_ls"] = f'{iou_loss_avg / (i + 1):.4f}'
 
-                    loss = aff_loss + iou_loss + seg_loss
+                    loss = seg_loss + aff_loss + iou_loss
                     tot_loss_avg += loss.item()
                     dict_for_postfix["tot_ls"] = f'{tot_loss_avg / (i + 1):.4f}'
 
@@ -295,7 +293,7 @@ class AlignTraining:
                     iou_org = iou_org_m.compute().item()
                     dict_for_postfix["iou_seg"] = f'{iou_seg:.4f}'
                     dict_for_postfix["iou_lea"] = f'{iou_learn:.4f}'
-                    dict_for_postfix["iou_evl"] = f'{iou_align:.4f}'
+                    dict_for_postfix["iou_align"] = f'{iou_align:.4f}'
                     dict_for_postfix["iou_org"] = f'{iou_org:.4f}'
 
                     if torch.cuda.is_available():
@@ -338,7 +336,7 @@ class AlignTraining:
                     'optimizer': optimizer.state_dict(),
                     'epoch': epoch,
                     'metrics': dict_for_postfix,
-                    'params': self.kwargs
+                    'params': self.config
                 }, best_path)
 
                 # save each part separately (encoder, decoder and tnet)
