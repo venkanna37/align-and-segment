@@ -128,7 +128,7 @@ class Dinov3Seg(torch.nn.Module):
         for module in [self.first_block, self.decoder, self.last_decoder_block, self.seg_layer]:
             for m in module.modules():
                 if isinstance(m, nn.Conv2d):
-                    nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                    nn.init.kaiming_normal_(m.weight)
 
     def decoder_state_dict(self):
         return {
