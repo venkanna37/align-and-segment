@@ -1,7 +1,6 @@
 import os
 import torch
 import wandb
-import random
 from tqdm import tqdm
 from datetime import datetime
 from torchmetrics import JaccardIndex
@@ -16,7 +15,6 @@ from pipelines.datagen.rebo_datagen import AlignDatagen
 from pipelines.models.stn import spatial_transformer_network
 from pipelines.utils.process_batch import transform_mask_with_random_affine
 from pipelines.utils.matrices import inverse_affine_matrix
-from pipelines.utils.process_tensor import split_3_image
 from .loss_functions import loss_for_seg
 
 

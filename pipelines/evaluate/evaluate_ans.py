@@ -119,7 +119,7 @@ class AlignPrediction():
         for i, val_batch in pbar_val:
             # Load data
             image = val_batch[0].to(self.device)
-            mask = val_batch[2].to(self.device)
+            mask = val_batch[2].to(self.device) if self.dataset_name != 'sanjuan' else val_batch[1].to(self.device)
             true_mask = val_batch[1].to(self.device)
             weight_mask = torch.ones_like(mask)
 

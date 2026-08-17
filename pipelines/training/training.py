@@ -23,14 +23,6 @@ from pipelines.utils.process_batch import transform_mask_with_random_affine
 from pipelines.utils.matrices import inverse_affine_matrix, add_third_row
 from .loss_functions import loss_for_seg
 
-def set_seed(seed=42):
-    random.seed(seed)                      # Python's built-in random
-    np.random.seed(seed)                   # NumPy
-    torch.manual_seed(seed)                # PyTorch CPU
-    torch.cuda.manual_seed(seed)           # PyTorch current GPU
-    torch.cuda.manual_seed_all(seed)       # PyTorch all GPUs (multi-GPU)
-# set_seed()
-
 
 class AlignTraining:
     def __init__(self, **kwargs):

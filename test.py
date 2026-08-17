@@ -26,7 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, default='./datasets',
                         help='data directory where input data available or can be downloaded')
     parser.add_argument('--dataset_name', type=str,
-                        choices=['sample_data', 'paris', 'khartoum', 'lasvegas', 'sanjuan', 'rebo'],
+                        choices=['sample_data', 'lasvegas', 'sanjuan', 'rebo'],
                         default='paris', help='Type of dataset for training')
 
     args = parser.parse_args()
