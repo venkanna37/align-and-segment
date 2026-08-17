@@ -3,7 +3,7 @@
 # Align and Segment (AnS): Unsupervised Learning for Building Segmentation From Misaligned Labels
 
 [![arXiv](https://img.shields.io/badge/arXiv-2607.10841-b31b1b.svg)](https://arxiv.org/pdf/2607.10841)
-[![Papers](https://img.shields.io/badge/-Papers-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/papers/2607.10841)
+[![Paper](https://img.shields.io/badge/-Papers-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/papers/2607.10841)
 [![Dataset](https://img.shields.io/badge/-Dataset-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/datasets/venkanna37/align-and-segment)
 [![Model](https://img.shields.io/badge/-Model-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/venkanna37/align-and-segment)
 
@@ -34,21 +34,25 @@ pip install -r requirements.txt
 
 ## Datasets and Weights
 
-All derived datasets and checkpoints are hosted on Hugging Face and are downloaded automatically during training and evaluation. They can also be downloaded separately:
+Two of the derived datasets and checkpoints are hosted on Hugging Face and are
+downloaded automatically during training and evaluation.
+They can also be downloaded separately:
 
 - [Datasets](https://huggingface.co/datasets/venkanna37/align-and-segment)
 - [Weights](https://huggingface.co/venkanna37/align-and-segment)
 
-To avoid redistributing DINOv3 weights and code, the [`timm`](https://timm.fast.ai/) library is used, which automatically downloads the weights during training and testing.
-The decoder weights for SNet and TNet are shared so the results can be reproduced.
+To avoid redistributing DINOv3 weights and code, the [`timm`](https://timm.fast.ai/) library is used,
+which automatically downloads the weights during training and inferencing.
+The weights of remaining part of the architecture, SNet and TNet are shared so the results can be reproduced.
 
-Custom datasets should follow the folder structure below. The `train.py` and `test.py` scripts automatically download and arrange both weights and datasets into this same structure.
+Custom datasets should follow the folder structure below.
+The `train.py` and `test.py` scripts automatically download and arrange both weights and datasets into this same structure.
 
 ### Folder structure
 
 ```
 datasets               # All datasets
-└── lasvegas           # Las Vegas data
+└── lasvegas           # Las Vegas: Synthetic data
     ├── train          # Training set
     │   ├── images     # Input images
     │   └── labels     # Input labels
@@ -56,6 +60,10 @@ datasets               # All datasets
     │   └── ...        # Same structure as train
     └── test           # Test set
         └── ...        # Same structure as train
+└── sanjuan            # San Juan: data for qualitative analysis
+    └── ...
+└── rebo               # ReBO: data with both real and golden labels 
+    └── ...
 
 runs
 ├── lasvegas_u         # Checkpoints on Las Vegas data with random noise
