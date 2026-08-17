@@ -1,3 +1,4 @@
+# all folders
 .idea
 temp/
 */__pycache__/
@@ -5,7 +6,11 @@ temp/
 runs/
 sample_data/ReBO/
 datasets/
-*.zip
 dinov3/
+lumi_results
+
+# all files
+*.zip
 *.sh
 lumi_commands.txt
+
