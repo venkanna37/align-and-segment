@@ -21,7 +21,7 @@ The outline of this repository is given as follows:
 
 ## Requirements
 
-Installing the packages in `requirements.txt` allows the trained weights and test results to be reproduced.
+Installing the packages in `requirements.txt` allows the pretrained weights and test results to be reproduced.
 
 ```bash
 conda create -n "ans" python=3.11.0
@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 ## Datasets and Weights
 
-Two of the derived datasets and checkpoints are hosted on Hugging Face and are
+Two of the derived datasets and pretrained weights are hosted on Hugging Face and are
 downloaded automatically during training and testing.
 The separate [data generator](https://github.com/venkanna37/align-and-segment/blob/main/pipelines/datagen/rebo_datagen.py)
 also prepared for [ReBO](https://huggingface.co/datasets/kevinlikai/ReBO) dataset,
@@ -44,8 +44,8 @@ All these datasets and weights can also be downloaded separately from links belo
 - [Weights](https://huggingface.co/venkanna37/align-and-segment)
 
 To avoid redistributing DINOv3 weights and code, the [`timm`](https://timm.fast.ai/) library was used in this implementation,
-which automatically downloads only weights of DINOv3 encoder during training and inferencing.
-The weights of remaining part of the architecture, SNet and TNet are released through Hugging Face.
+which automatically downloads only weights of DINOv3 encoder during training and testing.
+The weights of remaining parts of complete method, SNet and TNet are released through Hugging Face.
 The results can be reproduced by combining weights of DINOv3, SNet and TNet.
 
 Custom datasets should follow the folder structure below.
@@ -112,20 +112,9 @@ Adjust `--keyword` and `--dataset_name` accordingly to use pretrained weights an
 
 ## Note
 The implementation in this repository uses DINOv3 weights through `timm` python library.
-The original approach used in the paper require [filling signup form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download DINOv3 weights.
-The layer names in weights file downloaded through `timm` and through `filling signup form` are different.
-So, we trained again these models with another random seed, this gives slightly deviated results.
-The results with `timm` are added below. 
-
-**Las Vegas** : First two colums and last two columns are results on random noise and systematic noise datasets, respectively.
-| IoU<sub>seg</sub> | IoU<sub>align</sub>   | IoU<sub>seg</sub> |  IoU<sub>align</sub> |
-| :---:             |    :---:              |   :---:           |  :---:               |
-|  0.79             |    0.83               |   0.79            |   0.87               |
-
-**ReBO**
-| IoU<sub>seg</sub> | IoU<sub>align</sub> |
-| :---:             |  :---:              |
-| 0.62              |  0.75               |
+The original approach used in the paper require [filling request form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download DINOv3 weights.
+The layer names in weights file downloaded through `timm` and through `filling request form` are different.
+So, we trained again these models and shared weigths of SNet and TNet.
 
 ---
 
