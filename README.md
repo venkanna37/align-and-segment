@@ -1,7 +1,7 @@
 # Align and Segment (AnS): Unsupervised Learning for Building Segmentation From Misaligned Labels
 
 [![arXiv](https://img.shields.io/badge/arXiv-2607.10841-b31b1b.svg)](https://arxiv.org/pdf/2607.10841)
-[![Paper](https://img.shields.io/badge/-Papers-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/papers/2607.10841)
+[![Paper](https://img.shields.io/badge/-Paper-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/papers/2607.10841)
 [![Dataset](https://img.shields.io/badge/-Dataset-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/datasets/venkanna37/align-and-segment)
 [![Model](https://img.shields.io/badge/-Model-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/venkanna37/align-and-segment)
 
@@ -34,7 +34,8 @@ pip install -r requirements.txt
 
 Two of the derived datasets and checkpoints are hosted on Hugging Face and are
 downloaded automatically during training and testing.
-The separate data generator also prepared for [ReBO](https://huggingface.co/datasets/kevinlikai/ReBO) dataset,
+The separate [data generator](https://github.com/venkanna37/align-and-segment/blob/main/pipelines/datagen/rebo_datagen.py)
+also prepared for [ReBO](https://huggingface.co/datasets/kevinlikai/ReBO) dataset,
 it automatically download the data from Hugging Face and prepare for training.
 All these datasets and weights can also be downloaded separately from links below:
 
@@ -75,7 +76,7 @@ runs
 
 ## Train
 
-To train the model on `sample_data`, run:
+To train the model on `lasvegas` with random noise, run:
 
 ```bash
 python train.py --keyword lasvegas_u --dataset_name lasvegas --noise_type u
@@ -105,7 +106,7 @@ python test.py --keyword lasvegas_u --dataset_name lasvegas --noise_type u
 
 The folder names inside `runs/`, or on the [Hugging Face Model page](https://huggingface.co/venkanna37/align-and-segment), correspond to the `--keyword` values used during training.
 
-Adjust `--keyword` and `--dataset_name` accordingly to used pretrained weights and datasets, respectively.
+Adjust `--keyword` and `--dataset_name` accordingly to use pretrained weights and datasets, respectively.
 
 ---
 
@@ -114,13 +115,13 @@ The implementation in this repository uses DINOv3 weights through `timm` python 
 The original approach used in the paper require [filling signup form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download DINOv3 weights.
 The layer names in weights file downloaded through `timm` and through `filling signup form` are different.
 So, we trained again these models with another random seed, this gives slightly deviated results.
-The results with `timm` are added below.
+The results with `timm` are added below. 
 
-| Las Vegas                                       | ReBO                 |
-| :---    |     ---     |    ---     | ---:       |:---      | ---:      |
-| IoU_Seg | IoU_align   |   IoU_Seg  |  IoU_align | IoU_Seg  | IoU_align |
-| :---    |    :---:    |   :---:    |  :---:     | :---:    |  :---:    |
-|         |             |            |            |          |           |
+| Las Vegas                                                                            | ReBO                                    |
+| :---              |     ---               |    ---            | ---:                 |:---               | ---:      |         |
+| IoU<sub>seg</sub> | IoU<sub>align</sub>   | IoU<sub>seg</sub> |  IoU<sub>align</sub> | IoU<sub>seg</sub> | IoU<sub>align</sub> |
+| :---              |    :---:              |   :---:           |  :---:               | :---:             |  :---:              |
+|                   |                       |                   |                      |                   |                     |
 
 ## Cite
 If you find our work useful in your research, please consider citing our paper:
