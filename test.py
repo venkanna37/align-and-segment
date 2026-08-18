@@ -2,12 +2,8 @@
 # Testing trained AnS model
 """
 
-import os
-import torch
 import argparse
-import pandas as pd
-
-from pipelines.evaluate import evaluate_ans
+from tools.evaluate import evaluate_ans
 
 
 if __name__ == '__main__':

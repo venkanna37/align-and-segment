@@ -3,7 +3,7 @@
 """
 
 import argparse
-from pipelines.training import training as training_synth, training_qualitative, training_rebo
+from tools.training import training as training_synth, training_qualitative, training_rebo
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -45,7 +45,7 @@ if __name__ == '__main__':
                         help="Model name is combination of types of architecture in SNet and TNet")
                         # method1: model configuration from torch.hub
                         # method2: model configuration from timm
-    # check pipelines/models/load_models.py for more details about model_names
+    # check tools/models/load_models.py for more details about model_names
     parser.add_argument('--tnet_backbone', type=str, default="vitsmall",
                         help="TNet backbone name")
 

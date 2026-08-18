@@ -34,7 +34,7 @@ pip install -r requirements.txt
 
 Two of the derived datasets and pretrained weights are hosted on Hugging Face and are
 downloaded automatically during training and testing.
-The separate [data generator](https://github.com/venkanna37/align-and-segment/blob/main/pipelines/datagen/rebo_datagen.py)
+The separate [data generator](https://github.com/venkanna37/align-and-segment/blob/main/tools/datagen/rebo_datagen.py)
 also prepared for [ReBO](https://huggingface.co/datasets/kevinlikai/ReBO) dataset,
 it automatically download the data from Hugging Face and prepare for training.
 All these datasets and weights can also be downloaded separately from links below:
