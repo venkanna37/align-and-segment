@@ -1,5 +1,5 @@
 """
-Datagene that takes the ReBO data as input
+Data generator that takes the ReBO data as input
 """
 
 import os

@@ -2,7 +2,6 @@ import os
 import json
 import torch
 import wandb
-import random
 from tqdm import tqdm
 from torchmetrics import JaccardIndex
 from torch.utils.data import DataLoader
@@ -11,11 +10,11 @@ from segmentation_models_pytorch.losses import JaccardLoss
 from segmentation_models_pytorch.losses.constants import BINARY_MODE
 
 # custom imports
-from pipelines.models.load_models import load_model
-from pipelines.datagen.rebo_datagen import AlignDatagen
-from pipelines.datagen.spacenet2 import AlignDatagen as AlignDatagen_Spacenet
-from pipelines.models.stn import spatial_transformer_network
-from pipelines.training.loss_functions import loss_for_seg
+from tools.models.load_models import load_model
+from tools.datagen.rebo_datagen import AlignDatagen
+from tools.datagen.spacenet2 import AlignDatagen as AlignDatagen_Spacenet
+from tools.models.stn import spatial_transformer_network
+from tools.training.loss_functions import loss_for_seg
 
 
 class AlignPrediction():

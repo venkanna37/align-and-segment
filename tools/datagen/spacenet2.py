@@ -1,5 +1,5 @@
 """
-Datagenerator for
+Datagenerator
 """
 import os
 import torch

@@ -1,4 +1,3 @@
-import torch
 import torch.nn.functional as F
 from segmentation_models_pytorch.losses import JaccardLoss, DiceLoss
 from segmentation_models_pytorch.losses.constants import BINARY_MODE
