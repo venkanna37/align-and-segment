@@ -111,10 +111,12 @@ Adjust `--keyword` and `--dataset_name` accordingly to use pretrained weights an
 ---
 
 ## Note
-The implementation in this repository uses DINOv3 weights through `timm` python library.
-The original approach used in the paper require [filling request form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download DINOv3 weights.
-The layer names in weights file downloaded through `timm` and through `filling request form` are different.
-So, we trained again these models and shared weigths of SNet and TNet.
+All commands that can be used for training and testing added to `commands.txt` file.
+This repository's implementation uses DINOv3 weights loaded via the timm Python library.
+The original paper's approach instead requires submitting a [request form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download the DINOv3 weights directly from Meta.
+Because the layer names differ between the timm-loaded weights and the weights obtained through the request form,
+we retrained these models and are sharing the resulting weights for SNet and TNet.
+Because of retraining, there may be very small deviation of results compared results reported in original paper.
 
 ---
 
