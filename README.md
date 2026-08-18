@@ -117,15 +117,15 @@ The layer names in weights file downloaded through `timm` and through `filling s
 So, we trained again these models with another random seed, this gives slightly deviated results.
 The results with `timm` are added below. 
 
-**Las Vegas** : first two colums and last two columns are results on random noise and systematic noise datasets, respectively.
+**Las Vegas** : First two colums and last two columns are results on random noise and systematic noise datasets, respectively.
 | IoU<sub>seg</sub> | IoU<sub>align</sub>   | IoU<sub>seg</sub> |  IoU<sub>align</sub> |
-| :---              |    :---:              |   :---:           |  :---:               |
-|                   |                       |                   |                      |
+| :---:             |    :---:              |   :---:           |  :---:               |
+|  0.79             |    0.83               |   0.79            |   0.87`              |
 
 **ReBO**
 | IoU<sub>seg</sub> | IoU<sub>align</sub> |
 | :---:             |  :---:              |
-|                   |                     |
+| 0.62              |  0.75               |
 
 ---
 
