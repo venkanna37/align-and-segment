@@ -54,13 +54,16 @@ class AlignPrediction():
 
     def evaluate(self):
         if not os.path.exists(self.data_dir):
-            os.mkdir(dataset_dir)
+            os.mkdir(self.data_dir)
         # fixme currently downloading entire city data here, downloading test set enough here
         if self.dataset_name == 'rebo':
             # downloading both training and test sets
+            rebo_data_dir = os.path.join(self.data_dir, 'rebo')
+            if not os.path.exists(rebo_data_dir):
+                os.makedirs(rebo_data_dir, exist_ok=True)
 
-            snapshot_download(repo_id='kevinlikai/ReBO', repo_type='dataset', local_dir=test_data_dir)
-            test_set = AlignDatagen(self.data_dir,
+            snapshot_download(repo_id='kevinlikai/ReBO', repo_type='dataset', local_dir=rebo_data_dir)
+            test_set = AlignDatagen(rebo_data_dir,
                                     set_name=self.set_name,
                                     patch_size=512,
                                     )
@@ -165,7 +168,7 @@ class AlignPrediction():
             "iou_org": iou_org,
             "iou_learn": iou_learn,
             "iou_align": iou_align
-        } if self.dataset_name != 'sanjuan' else metrics = {"iou_org": iou_org, "iou_learn": iou_learn}
+        } if self.dataset_name != 'sanjuan' else {"iou_org": iou_org, "iou_learn": iou_learn}
 
         print("\n -----Validation summary-----")
         print(json.dumps(metrics, indent=4))
