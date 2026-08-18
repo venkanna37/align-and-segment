@@ -3,7 +3,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2607.10841-b31b1b.svg)](https://arxiv.org/pdf/2607.10841)
 [![Paper](https://img.shields.io/badge/-Paper-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/papers/2607.10841)
 [![Dataset](https://img.shields.io/badge/-Dataset-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/datasets/venkanna37/align-and-segment)
-[![Model](https://img.shields.io/badge/-Model-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/venkanna37/align-and-segment)
+[![Weights](https://img.shields.io/badge/-Weights-orange?logo=huggingface&logoColor=FFD21E&labelColor=555)](https://huggingface.co/venkanna37/align-and-segment)
 
 This is the official repository for the ECCV 2026 paper **"Align and Segment: Unsupervised Learning for Building Segmentation From Misaligned Labels."**
 
