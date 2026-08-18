@@ -117,11 +117,16 @@ The layer names in weights file downloaded through `timm` and through `filling s
 So, we trained again these models with another random seed, this gives slightly deviated results.
 The results with `timm` are added below. 
 
-| Las Vegas                                                                            | ReBO                                    |
-| :---              |     ---               |    ---            | ---:                 |:---               | ---:      |         |
-| IoU<sub>seg</sub> | IoU<sub>align</sub>   | IoU<sub>seg</sub> |  IoU<sub>align</sub> | IoU<sub>seg</sub> | IoU<sub>align</sub> |
-| :---              |    :---:              |   :---:           |  :---:               | :---:             |  :---:              |
-|                   |                       |                   |                      |                   |                     |
+**Las Vegas **
+| IoU<sub>seg</sub> | IoU<sub>align</sub>   | IoU<sub>seg</sub> |  IoU<sub>align</sub> |
+| :---              |    :---:              |   :---:           |  :---:               |
+|                   |                       |                   |                      |
+
+
+** ReBO **
+| IoU<sub>seg</sub> | IoU<sub>align</sub> |
+| :---:             |  :---:              |
+|                   |                     |
 
 ## Cite
 If you find our work useful in your research, please consider citing our paper:
