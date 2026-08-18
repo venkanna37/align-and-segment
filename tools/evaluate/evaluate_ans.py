@@ -85,7 +85,13 @@ class AlignPrediction():
         snet, tnet = load_model(self.model_name, self.tnet_backbone)
         model = torch.nn.Sequential(snet, tnet)
 
-        # load weights, load complete model weights if exists, esle load decoder and tnet
+        # download weights from huggingface if self.keyword is pointing them
+        if self.keyword in ['lasvegas_u', 'lasvegas_b', 'rebo', 'sanjuan']:
+            print(f'Downloading {self.keyword} weights from Hugging Face Models')
+            snapshot_download(repo_id='venkanna37/align-and-segment',
+                              allow_patterns=[f'{self.keyword}/**'], local_dir=self.checkpoints_dir)
+
+        # load weights, load complete model weights if exists, else load decoder and tnet
         complete_weights = os.path.join(self.checkpoints_dir, self.keyword, 'best.pth')
         decoder_weights = os.path.join(self.checkpoints_dir, self.keyword, 'decoder.pth')
         tnet_weights = os.path.join(self.checkpoints_dir, self.keyword, 'tnet.pth')

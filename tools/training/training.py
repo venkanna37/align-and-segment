@@ -49,7 +49,6 @@ class AlignTraining:
         # model parameters
         self.model_name = kwargs.get('model_name', None)
         self.tnet_backbone = kwargs.get('tnet_backbone', 'vitsmall')
-        self.use_tnet_weights = kwargs.get('use_tnet_weights', False)
 
         # train parameters
         self.learning_rate = kwargs.get('learning_rate', 0.00001)

@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     # parameters
     parser.add_argument("--keyword", type=str,
-                        help='keyword used in saving pretrained model', default='paris_u')
+                        help='Keyword used in saving pretrained model', default='lasvegas_u')
     parser.add_argument("--set_name", type=str, default='test')
     parser.add_argument("--batch_size", type=int, default=24)
     parser.add_argument("--num_workers", type=int, default=8)
