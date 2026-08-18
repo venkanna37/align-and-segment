@@ -1,5 +1,3 @@
-⚠️ **This code is under preparation. It will be ready soon!**
-
 # Align and Segment (AnS): Unsupervised Learning for Building Segmentation From Misaligned Labels
 
 [![arXiv](https://img.shields.io/badge/arXiv-2607.10841-b31b1b.svg)](https://arxiv.org/pdf/2607.10841)
@@ -17,7 +15,7 @@ The outline of this repository is given as follows:
 * [**Datasets and Weights**](#datasets-and-weights)
 * [**Train**](#train)
 * [**Test**](#test)
-* [**Citing**](#citing)
+* [**Cite**](#cite)
 
 ---
 
@@ -35,18 +33,23 @@ pip install -r requirements.txt
 ## Datasets and Weights
 
 Two of the derived datasets and checkpoints are hosted on Hugging Face and are
-downloaded automatically during training and evaluation.
-They can also be downloaded separately:
+downloaded automatically during training and testing.
+The separate data generator also prepared for [ReBO](https://huggingface.co/datasets/kevinlikai/ReBO) dataset,
+it automatically download the data from Hugging Face and prepare for training.
+All these datasets and weights can also be downloaded separately from links below:
 
-- [Datasets](https://huggingface.co/datasets/venkanna37/align-and-segment)
+- [AnS Datasets](https://huggingface.co/datasets/venkanna37/align-and-segment)
+- [ReBO Dataset](https://huggingface.co/datasets/kevinlikai/ReBO)
 - [Weights](https://huggingface.co/venkanna37/align-and-segment)
 
-To avoid redistributing DINOv3 weights and code, the [`timm`](https://timm.fast.ai/) library is used,
-which automatically downloads the weights during training and inferencing.
-The weights of remaining part of the architecture, SNet and TNet are shared so the results can be reproduced.
+To avoid redistributing DINOv3 weights and code, the [`timm`](https://timm.fast.ai/) library was used in this implementation,
+which automatically downloads only weights of DINOv3 encoder during training and inferencing.
+The weights of remaining part of the architecture, SNet and TNet are released through Hugging Face.
+The results can be reproduced by combining weights of DINOv3, SNet and TNet.
 
 Custom datasets should follow the folder structure below.
-The `train.py` and `test.py` scripts automatically download and arrange both weights and datasets into this same structure.
+The `train.py` and `test.py` scripts automatically download and arrange
+both weights and datasets into this same folder structure.
 
 ### Folder structure
 
@@ -60,16 +63,11 @@ datasets               # All datasets
     │   └── ...        # Same structure as train
     └── test           # Test set
         └── ...        # Same structure as train
-└── sanjuan            # San Juan: data for qualitative analysis
-    └── ...
-└── rebo               # ReBO: data with both real and golden labels 
-    └── ...
-
 runs
 ├── lasvegas_u         # Checkpoints on Las Vegas data with random noise
 │   ├── decoder.pt     # Decoder weights
 │   └── tnet.pt        # TNet weights
-└── lasvegas_b         # Checkpoints on Las Vegas data with systematic noise
+└── rebo               # Checkpoints on Las Vegas data with systematic noise
     └── ...            # Same structure as lasvegas_u
 ```
 
@@ -80,12 +78,14 @@ runs
 To train the model on `sample_data`, run:
 
 ```bash
-python train.py --keyword test_run --dataset_name sample_data
+python train.py --keyword lasvegas_u --dataset_name lasvegas --noise_type u
 ```
 
-Change `--dataset_name` to `paris`, `khartoum`, `lasvegas`, `sanjuan`, or `rebo` to reproduce the training weights on the respective dataset.
+Change `--dataset_name` to `sanjuan` or `rebo` to reproduce the training
+weights on the respective dataset.
 
-Use `--noise_type` to select **random** (`u`) or **systematic** (`b`) noise when training on the `paris`, `khartoum`, or `lasvegas` datasets.
+Use `--noise_type` to `u` or `b` when training on the `lasvegas` dataset for generating
+random and systematic noises, respectively. It is not required for both `sanjuan` and `rebo` datasets.
 
 For all available options, run:
 
@@ -100,17 +100,31 @@ python train.py --help
 To evaluate the model on the test set of Las Vegas with random noise:
 
 ```bash
-python test.py --keyword lasvegas_u --dataset_name lasvegas
+python test.py --keyword lasvegas_u --dataset_name lasvegas --noise_type u
 ```
 
 The folder names inside `runs/`, or on the [Hugging Face Model page](https://huggingface.co/venkanna37/align-and-segment), correspond to the `--keyword` values used during training.
 
-Change `--dataset_name` to `paris`, `khartoum`, `lasvegas`, `sanjuan`, or `rebo` to reproduce the results on respective dataset.
+Adjust `--keyword` and `--dataset_name` accordingly to used pretrained weights and datasets, respectively.
 
 ---
 
-## Citing
+## Note
+The implementation in this repository uses DINOv3 weights through `timm` python library.
+The original approach used in the paper require [filling signup form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download DINOv3 weights.
+The layer names in weights file downloaded through `timm` and through `filling signup form` are different.
+So, we trained again these models with another random seed, this gives slightly deviated results.
+The results with `timm` are added below.
+
+| Las Vegas                                       | ReBO                 |
+| :---    |     ---     |    ---     | ---:       |:---      | ---:      |
+| IoU_Seg | IoU_align   |   IoU_Seg  |  IoU_align | IoU_Seg  | IoU_align |
+| :---    |    :---:    |   :---:    |  :---:     | :---:    |  :---:    |
+|         |             |            |            |          |           |
+
+## Cite
 If you find our work useful in your research, please consider citing our paper:
+
 ```
 @inproceedings{Guthula_align2026,
   title={Align and Segment: Unsupervised Learning for Building Segmentation From Misaligned Labels},
