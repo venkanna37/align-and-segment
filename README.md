@@ -120,7 +120,7 @@ The results with `timm` are added below.
 **Las Vegas** : First two colums and last two columns are results on random noise and systematic noise datasets, respectively.
 | IoU<sub>seg</sub> | IoU<sub>align</sub>   | IoU<sub>seg</sub> |  IoU<sub>align</sub> |
 | :---:             |    :---:              |   :---:           |  :---:               |
-|  0.79             |    0.83               |   0.79            |   0.87`              |
+|  0.79             |    0.83               |   0.79            |   0.87               |
 
 **ReBO**
 | IoU<sub>seg</sub> | IoU<sub>align</sub> |
