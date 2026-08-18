@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     # data parameters
     parser.add_argument('--dataset_name', type=str,
-                        choices=['sample_data', 'paris', 'khartoum', 'lasvegas', 'sanjuan', 'rebo'],
+                        choices=['sample_data', 'lasvegas', 'sanjuan', 'rebo'],
                         default='sample_data', help='Type of dataset for training')
     parser.add_argument('--noise_type', type=str, choices=['u', 'b'], default='u',
                         help='Type of synthetic noise u: random noise, b: systematic noise')
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     params = vars(args)
 
     # Initialize training object and train model
-    if args.dataset_name in ['sample_data', 'paris', 'khartoum', 'lasvegas']:
+    if args.dataset_name in ['sample_data', 'lasvegas']:
         train = training_synth.AlignTraining(**params)
     elif args.dataset_name == 'sanjuan':
         params['noise_type'] = 'r'

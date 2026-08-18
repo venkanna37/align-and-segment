@@ -165,7 +165,8 @@ class AlignPrediction():
             "iou_org": iou_org,
             "iou_learn": iou_learn,
             "iou_align": iou_align
-        }
+        } if self.dataset_name != 'sanjuan' else metrics = {"iou_org": iou_org, "iou_learn": iou_learn}
+
         print("\n -----Validation summary-----")
         print(json.dumps(metrics, indent=4))
         print("-------------------------------")

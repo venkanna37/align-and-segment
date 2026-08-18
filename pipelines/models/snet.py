@@ -96,9 +96,9 @@ class Dinov3Seg(torch.nn.Module):
         super(Dinov3Seg, self).__init__()
 
         if method == 'method1':
-            self.dinov3 = Dinov3_hub()
-        elif method == 'method2':
             self.dinov3 = Dinov3_timm()
+        elif method == 'method2':
+            self.dinov3 = Dinov3_hub()
         else:
             raise NotImplementedError
 
