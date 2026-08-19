@@ -21,7 +21,7 @@ The outline of this repository is given as follows:
 
 ## Requirements
 
-Installing the packages in `requirements.txt` allows the pretrained weights and test results to be reproduced.
+Install the packages in `requirements.txt`:
 
 ```bash
 conda create -n "ans" python=3.11.0
@@ -32,21 +32,20 @@ pip install -r requirements.txt
 
 ## Datasets and Weights
 
-Two of the derived datasets and pretrained weights are hosted on Hugging Face and are
+Two of the derived datasets and the pretrained weights are hosted on Hugging Face and are
 downloaded automatically during training and testing.
 The separate [data generator](https://github.com/venkanna37/align-and-segment/blob/main/tools/datagen/rebo_datagen.py)
-also prepared for [ReBO](https://huggingface.co/datasets/kevinlikai/ReBO) dataset,
-it automatically download the data from Hugging Face and prepare for training.
-All these datasets and weights can also be downloaded separately from links below:
+also prepared for the [ReBO](https://huggingface.co/datasets/kevinlikai/ReBO) dataset,
+automatically downloads the data from Hugging Face and prepares the data for training.
+All the used datasets and weights can also be downloaded separately from links below:
 
 - [AnS Datasets](https://huggingface.co/datasets/venkanna37/align-and-segment)
 - [ReBO Dataset](https://huggingface.co/datasets/kevinlikai/ReBO)
 - [Weights](https://huggingface.co/venkanna37/align-and-segment)
 
-To avoid redistributing DINOv3 weights and code, the [`timm`](https://timm.fast.ai/) library was used in this implementation,
+The pretrained DINOv3 encoder weights are obtained via the [`timm`](https://timm.fast.ai/) library,
 which automatically downloads only weights of DINOv3 encoder during training and testing.
-The weights of remaining parts of complete method, SNet and TNet are released through Hugging Face.
-The results can be reproduced by combining weights of DINOv3, SNet and TNet.
+The trained weights of our method, including the SNet and TNet weights, are released through Hugging Face.
 
 Custom datasets should follow the folder structure below.
 The `train.py` and `test.py` scripts automatically download and arrange
@@ -76,7 +75,7 @@ runs
 
 ## Train
 
-To train the model on `lasvegas` with random noise, run:
+To train the model on one city, e.g. for `lasvegas` with random noise, run:
 
 ```bash
 python train.py --keyword lasvegas_u --dataset_name lasvegas --noise_type u
@@ -111,13 +110,12 @@ Adjust `--keyword` and `--dataset_name` accordingly to use pretrained weights an
 ---
 
 ## Note
-All commands that can be used for training and testing added to `commands.txt` file.
-This repository's implementation uses DINOv3 weights loaded via the timm Python library.
-The original paper's approach instead requires submitting a [request form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download the DINOv3 weights directly from Meta.
+A complete list of commands that can be used for training and testing are added to `commands.txt` file.
+This repository's implementation uses the timm Python library to use the pretrained DINOv3 encoder.
+The original paper's approach was developed using the implementation provided by Meta, which requires submitting a [request form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download the DINOv3 weights.
 Because the layer names differ between the timm-loaded weights and the weights obtained through the request form,
 we retrained these models and are sharing the resulting weights for SNet and TNet.
-Because of retraining, there may be very small deviation of results compared results reported in original paper.
-
+Because of the retraining, there may be small deviation of results compared to the results reported in the original paper.
 ---
 
 ## Cite
