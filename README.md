@@ -110,6 +110,7 @@ Adjust `--keyword` and `--dataset_name` accordingly to use pretrained weights an
 ---
 
 ## Note
+
 A complete list of commands that can be used for training and testing are added to `commands.txt` file.
 This repository's implementation uses the timm Python library to use the pretrained DINOv3 encoder.
 The original paper's approach was developed using the implementation provided by Meta, which requires submitting a [request form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download the DINOv3 weights.
