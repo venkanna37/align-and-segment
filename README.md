@@ -113,10 +113,12 @@ Adjust `--keyword` and `--dataset_name` accordingly to use pretrained weights an
 
 A complete list of commands that can be used for training and testing are added to `commands.txt` file.
 This repository's implementation uses the timm Python library to use the pretrained DINOv3 encoder.
-The original paper's approach was developed using the implementation provided by Meta, which requires submitting a [request form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download the DINOv3 weights.
+The original paper's approach was developed using the implementation provided by Meta,
+which requires submitting a [request form](https://ai.meta.com/resources/models-and-libraries/dinov3-downloads/) to download the DINOv3 weights.
 Because the layer names differ between the timm-loaded weights and the weights obtained through the request form,
 we retrained these models and are sharing the resulting weights for SNet and TNet.
 Because of the retraining, there may be small deviation of results compared to the results reported in the original paper.
+
 ---
 
 ## Cite
